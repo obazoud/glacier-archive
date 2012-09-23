@@ -4,7 +4,9 @@ base = os.path.dirname(os.path.dirname(__file__))
 base_parent = os.path.dirname(base) 
 sys.path.append(base) 
 sys.path.append(base_parent)
-logger=logging.getLogger(__name__)
+#logger=logging.getLogger(__name__)
+from celery.utils.log import get_task_logger
+logger = get_task_logger(__name__)
 
 import os,collections,sys, time, ConfigParser,tarfile,random,logging,string,getopt
 from threading import Thread
@@ -89,6 +91,7 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
             logger.error('Error creating archive %s' % exc)
             transaction.rollback()
     except Exception,exc:
-        logger.error('Error creating archive %s' % exc)
+        logger.error('Error creating archive final %s' % (exc))
+	print ('Error creating archive final %s' % (exc))
         transaction.rollback()
     return
