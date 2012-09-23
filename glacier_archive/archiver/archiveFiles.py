@@ -124,14 +124,16 @@ def archiveFiles (tempTarFile=None):
             print "Got job %s-files" % len(job)
             try:
                 #create database archive
-                c = Archives()
-                c.archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
+                #c = Archives()
+                c = Archives().archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
+		sid = transaction.savepoint()
                 if DEBUG_MODE:
                     logger.debug("Created archive in DB")
                 #add files to temp archive on disk
                 try:
                     #add each to tarchive
                     makeTar(job,tempTarFile)
+		    transaction.savepoint_commit(sid)
                     if DEBUG_MODE:
                         logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
                     #add each to DB
