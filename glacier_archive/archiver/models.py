@@ -19,7 +19,7 @@ class Archives(models.Model):
     archive_id = models.CharField(max_length=1000)
     startdate = models.DateTimeField(blank=True,null=True,auto_now=True)
     filecount = models.IntegerField(blank=True,null=True)
-    bytesize = models.IntegerField(blank=True,null=True)
+    bytesize = models.BigIntegerField(blank=True,null=True)
     short_description = models.CharField(max_length=250,blank=True,null=True)
     vault = models.CharField(max_length=100,blank=True,null=True)
     
@@ -39,6 +39,8 @@ class Archives(models.Model):
         self.save()
         for tag in tags:
             self.tags.add(tag)
+	self.save()
+	return self
 
     def update_archive_id(self,archive_id):
         self.archive_id=archive_id
@@ -47,7 +49,7 @@ class Archives(models.Model):
 class ArchiveFiles(models.Model):
     archive = models.ForeignKey(Archives)
     startdate = models.DateTimeField(blank=True,null=True,auto_now=True)
-    bytesize = models.IntegerField(blank=True,null=True)
+    bytesize = models.BigIntegerField(blank=True,null=True)
     filepath = models.CharField(max_length=2000)
     fileadate = models.DateTimeField(blank=True,null=True)
     filemdate = models.DateTimeField(blank=True,null=True)
