@@ -15,7 +15,9 @@ Django 1.4+ (and some knowledge about basic Django setup. Yes, I know this is co
 
 Haystack w/Search of Choice (I picked elasticsearch)
 
-Glacier libraries for Python (https://github.com/paulengstler/glacier). You might want to use my fork.
+Glacier libraries for Python (https://github.com/paulengstler/glacier). You might want to use my fork.  
+
+Celery and Redis if you're doing multi-threading.  
 
 Django Settings File
 ===========================
@@ -29,7 +31,10 @@ ELASTICSEARCH - Default True, using ElasticSearch
 NUMFILES - Default 1000 - Number of files per tarball. This tells the system how many files should be in each tarball. If you point it at a tree of a million files, it'll make 1000 tarballs and upload them to Glacier.  
 ARCHIVEMB - Default 500 - Number of MB per tarball. When 500MB in a tarball are exceeded, it closes that tarball and moves to a new one. If you have 10 1GB files, it'll make 10 Tarballs. It won't split files.  
 HAYSTACK_CONNECTIONS - By default, it's set up for elasticsearch. Configure it for your needs.  
-CHECKSECONDS - (600) - The number of seconds to wait between checking for finished archive retrieval tasks.
+CHECKSECONDS - (600) - The number of seconds to wait between checking for finished archive retrieval tasks.  
+USECELERY=True  - Use Celery for multithreaded queues. Currently multithreading with Haystack is broken so if you're going to use multithreads, use this. Requires you to set-up Celery.  
+BROKER_URL = 'redis://localhost:6379/0'  - Broker URL. Redis by default.  
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by default.
 
 Setup
 =========================

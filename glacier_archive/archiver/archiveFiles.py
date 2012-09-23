@@ -16,6 +16,7 @@ from datetime import datetime
 from pytz import timezone
 from archiver.models import Archives,ArchiveFiles
 from archiver.crawler import Crawler
+from archiver.tasks import archiveFilesTask as af
 
 from glacier.glacier import Connection as GlacierConnection
 from glacier.vault import Vault as GlacierVault
@@ -38,6 +39,7 @@ DESCRIPTION=None
 NUMFILES=1000
 ARCHIVEMB=500
 GLACIER_REALM="us-east-1"
+USECELERY=False
 
 logger=logging.getLogger(__name__)
 queue = Queue()
@@ -45,8 +47,14 @@ queue = Queue()
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for x in range(size))
 
-def uploadToGlacier(tempTarFile=None):
-    global DEBUG_MODE,GLACIER_VAULT,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_REALM
+def uploadToGlacier(tempTarFile=None,
+                    DEBUG_MODE=False,
+                    GLACIER_VAULT=None,
+                    SECRET_ACCESS_KEY=None,
+                    ACCESS_KEY=None,
+                    GLACIER_REALM=None):
+    global logger
+
     if not tempTarFile:
         return 0
     # Establish a connection to the Glacier
@@ -126,14 +134,14 @@ def archiveFiles (tempTarFile=None):
                 #create database archive
                 #c = Archives()
                 c = Archives().archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
-		sid = transaction.savepoint()
+                sid = transaction.savepoint()
                 if DEBUG_MODE:
                     logger.debug("Created archive in DB")
                 #add files to temp archive on disk
                 try:
                     #add each to tarchive
                     makeTar(job,tempTarFile)
-		    transaction.savepoint_commit(sid)
+                    transaction.savepoint_commit(sid)
                     if DEBUG_MODE:
                         logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
                     #add each to DB
@@ -159,7 +167,12 @@ def archiveFiles (tempTarFile=None):
                             bulk.append(f)
                     ArchiveFiles.objects.bulk_create(bulk)
                     #upload to glacier
-                    archive_id = uploadToGlacier(tempTarFile)
+                    archive_id = uploadToGlacier(tempTarFile=tempTarFile,
+                                                 DEBUG_MODE=DEBUG_MODE,
+                                                 GLACIER_VAULT=GLACIER_VAULT,
+                                                 SECRET_ACCESS_KEY=SECRET_ACCESS_KEY,
+                                                 ACCESS_KEY=ACCESS_KEY,
+                                                 GLACIER_REALM=GLACIER_REALM)
                     c.update_archive_id(archive_id)
                     c.bytesize=total_bytesize
                     c.filecount=filelength
@@ -187,7 +200,7 @@ def archiveFiles (tempTarFile=None):
 
 def main(argv):
     #set up all of the variables
-    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM
+    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY
     NUM_PROCS=settings.NUM_PROCS
     TEMP_DIR=settings.TEMP_DIR
     ACCESS_KEY=settings.ACCESS_KEY
@@ -196,6 +209,7 @@ def main(argv):
     NUMFILES=settings.NUMFILES
     ARCHIVEMB=settings.ARCHIVEMB
     GLACIER_REALM=settings.GLACIER_REALM
+    USECELERY=settings.USECELERY
 
     try:
         opts, args = getopt.getopt(argv, "hx:z:t:s:rd", [
@@ -265,28 +279,41 @@ def main(argv):
         
     #start crawl - single crawl, launches multiple tasks
     global queue
-    if DIR:
-        c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue)
-        c.set_newer(int(NEWERTHAN))
-        c.set_older(int(OLDERTHAN))
-        c.recurseCrawl(FILENAME)
-        for i in range(NUM_PROCS):
-            t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16)])
-            t.setDaemon(True)
-            t.start()
+    if USECELERY:
+        if DIR:
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY)
+            c.set_newer(int(NEWERTHAN))
+            c.set_older(int(OLDERTHAN))
+            c.recurseCrawl(FILENAME)
+            for job in c.alljobs:
+                af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS])
+                #archiveFiles.delay(4, 4)            
+        else:
+            pass
+            #one file
     else:
-        fileList=[]
-        fileList.append(FILENAME)
-        queue.put(fileList)    
-        for i in range(NUM_PROCS):
-            t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16)])
-            t.setDaemon(True)
-            t.start()
-    
-    queue.join()
-    if queue.empty():
-        print "Done processing queue."
-        sys.exit(1)        
+        if DIR:
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY)
+            c.set_newer(int(NEWERTHAN))
+            c.set_older(int(OLDERTHAN))
+            c.recurseCrawl(FILENAME)
+            for i in range(NUM_PROCS):
+                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16)])
+                t.setDaemon(True)
+                t.start()
+        else:
+            fileList=[]
+            fileList.append(FILENAME)
+            queue.put(fileList)    
+            for i in range(NUM_PROCS):
+                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16)])
+                t.setDaemon(True)
+                t.start()
+        
+        queue.join()
+        if queue.empty():
+            print "Done processing queue."
+            sys.exit(1)        
 
 def usage():
     print 'archiveFilesCommandline.py - find and archive to glacier'
@@ -300,7 +327,7 @@ def usage():
     print ' -z|--newerthan= newer than in days, include. If left blank, all inclusive.'
     print ' -t|--tags= comma delimited list of keywords for later retrieval'
     print ' -s|--description= short description of archive'
-    print ' -r -- recursive'
+    print ' -r --recursive'
     print
 
 if __name__ == "__main__":

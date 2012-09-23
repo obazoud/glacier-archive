@@ -16,7 +16,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
         'NAME': 'glacier_archive',                      # Or path to database file if using sqlite3.
         'USER': 'root',                      # Not used with sqlite3.
-        'PASSWORD': 'XXXX',                  # Not used with sqlite3.
+        'PASSWORD': 'globochem',                  # Not used with sqlite3.
         'HOST': 'localhost',                      # Set to empty string for localhost. Not used with sqlite3.
         'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
     }
@@ -170,7 +170,7 @@ SECRET_ACCESS_KEY="XXXX"
 GLACIER_VAULT="glaciervault"
 GLACIER_REALM="us-east-1"
 ELASTICSEARCH=True
-NUMFILES=1000
+NUMFILES=100
 ARCHIVEMB=500
 CHECKSECONDS=600
 HAYSTACK_CONNECTIONS = {
@@ -184,3 +184,8 @@ import warnings
 warnings.filterwarnings(
         'error', r"DateTimeField received a naive datetime",
         RuntimeWarning, r'django\.db\.models\.fields')
+
+USECELERY=True
+BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+

@@ -12,13 +12,16 @@ class Crawler(object):
     queue=None    
     newertime=0
     oldertime=0
+    alljobs=[]
+    usecelery=False
 
-    def __init__(self, filepath=None,recurse=False,numfiles=1000,archivemb=500,queue=queue):
+    def __init__(self, filepath=None,recurse=False,numfiles=1000,archivemb=500,queue=queue,usecelery=False):
         self.filepath=filepath
         self.recurse=recurse
         self.numfiles=numfiles
         self.archivemb=archivemb
         self.queue=queue
+        self.usecelery=usecelery
     
     def set_newer(self,newertime=0):
         self.newertime=newertime
@@ -36,7 +39,10 @@ class Crawler(object):
             #continue
         else:
             jobcopy = self.jobarray
-            self.queue.put(jobcopy)
+            if self.usecelery:
+                self.alljobs.append(jobcopy)
+            else:
+                self.queue.put(jobcopy)
             self.jobarray=[]
             self.arraysize=0
             self.jobarray.append(rfile)
@@ -74,9 +80,13 @@ class Crawler(object):
                     self.addFile(rfile,statinfo)
 
         jobcopy=[]
-        jobcopy = self.jobarray    
-        if len(jobcopy)>0:
-            self.queue.put(jobcopy)
+        jobcopy = self.jobarray
+        if self.usecelery:
+            if len(jobcopy)>0:
+                self.alljobs.append(jobcopy)
+        else:    
+            if len(jobcopy)>0:
+                self.queue.put(jobcopy)
             
         logger.debug("Done crawl "+filepath)
             
