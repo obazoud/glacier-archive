@@ -1,5 +1,4 @@
 from haystack import indexes
-#from celery_haystack import indexes as celindexes
 
 import datetime
 from archiver.models import Archives,ArchiveFiles
