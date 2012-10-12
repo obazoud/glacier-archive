@@ -44,7 +44,7 @@ def scan_for_task():
             except Exception,exc:
                 print "Error scan conn: %s" % (exc)
                 logger.error("Error scan conn: %s" % (exc))
-                transcation.rollback()
+                transaction.rollback()
                 sys.exit(2)
         
         for a in ar:
