@@ -134,7 +134,7 @@ def main(argv):
     
     searchrecord=[]
     if SEARCHSTRING:
-        searchresults = Archives.objects.channels_search(SEARCHSTRING)
+        searchresults = Archives.objects.archive_search(SEARCHSTRING)
         for r in searchresults:
             searchrecord.append(r.object)
     elif ARCHIVEID:
