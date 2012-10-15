@@ -122,7 +122,8 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'haystack',
     'taggit',
-    'archiver'    
+    'archiver',
+    'djcelery'    
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
@@ -186,6 +187,4 @@ warnings.filterwarnings(
         RuntimeWarning, r'django\.db\.models\.fields')
 
 USECELERY=True
-BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
