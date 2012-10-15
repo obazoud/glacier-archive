@@ -123,6 +123,4 @@ API for archive.
 
 Scripts to do retention. (when files are archived, delete archived files)
 
-Integrate with Celery
-
 Integrate with NoSQL backend.
