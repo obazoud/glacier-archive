@@ -33,8 +33,12 @@ ARCHIVEMB - Default 500 - Number of MB per tarball. When 500MB in a tarball are 
 HAYSTACK_CONNECTIONS - By default, it's set up for elasticsearch. Configure it for your needs.  
 CHECKSECONDS - (600) - The number of seconds to wait between checking for finished archive retrieval tasks.  
 USECELERY=True  - Use Celery for multithreaded queues. Currently multithreading with Haystack is broken so if you're going to use multithreads, use this. Requires you to set-up Celery.  
+
+celeryconfig.py settings file  
+=================================
 BROKER_URL = 'redis://localhost:6379/0'  - Broker URL. Redis by default.  
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by default.
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by default.  
+
 
 Setup
 =========================
