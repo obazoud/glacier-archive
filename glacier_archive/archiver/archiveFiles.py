@@ -40,6 +40,7 @@ NUMFILES=1000
 ARCHIVEMB=500
 GLACIER_REALM="us-east-1"
 USECELERY=False
+DRY=False
 
 logger=logging.getLogger(__name__)
 queue = Queue()
@@ -100,9 +101,11 @@ def uploadToGlacier(tempTarFile=None,
         return my_archive.id    
     return 0
 
-def makeTar(fileList=None,tempfilename=None):
+def makeTar(fileList=None,tempfilename=None,dry=False):
     #tempfilename = TEMP_DIR+"/"+id_generator(size=16)
     global NEWERTHAN,OLDERTHAN
+    if dry:
+        return
     tar = tarfile.open(tempfilename, "w")
     for name in fileList:
         statinfo = os.stat(name)
@@ -118,7 +121,7 @@ def makeTar(fileList=None,tempfilename=None):
     return     
 
 @transaction.commit_manually
-def archiveFiles (tempTarFile=None):
+def archiveFiles (tempTarFile=None,dry=False):
     global queue
     global logger
     global GLACIER_VAULT
@@ -134,14 +137,16 @@ def archiveFiles (tempTarFile=None):
                 #create database archive
                 #c = Archives()
                 c = Archives().archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
-                sid = transaction.savepoint()
+                if not dry:
+                    sid = transaction.savepoint()
                 if DEBUG_MODE:
                     logger.debug("Created archive in DB")
                 #add files to temp archive on disk
                 try:
                     #add each to tarchive
-                    makeTar(job,tempTarFile)
-                    transaction.savepoint_commit(sid)
+                    makeTar(job,tempTarFile,DRY)
+                    if not DRY:
+                        transaction.savepoint_commit(sid)
                     if DEBUG_MODE:
                         logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
                     #add each to DB
@@ -165,20 +170,26 @@ def archiveFiles (tempTarFile=None):
                                              )
                             total_bytesize=total_bytesize+bytesize
                             bulk.append(f)
-                    ArchiveFiles.objects.bulk_create(bulk)
+                    if dry:
+                        if DEBUG_MODE:
+                            logger.debug("done task -- dry run -- %s " % tempTarFile)
+                        transaction.rollback()
+                        queue.task_done()                        
+                    else:
+                        ArchiveFiles.objects.bulk_create(bulk)
                     #upload to glacier
-                    archive_id = uploadToGlacier(tempTarFile=tempTarFile,
-                                                 DEBUG_MODE=DEBUG_MODE,
-                                                 GLACIER_VAULT=GLACIER_VAULT,
-                                                 SECRET_ACCESS_KEY=SECRET_ACCESS_KEY,
-                                                 ACCESS_KEY=ACCESS_KEY,
-                                                 GLACIER_REALM=GLACIER_REALM)
-                    c.update_archive_id(archive_id)
-                    c.bytesize=total_bytesize
-                    c.filecount=filelength
-                    c.save()
-                    queue.task_done()
-                    transaction.commit()
+                        archive_id = uploadToGlacier(tempTarFile=tempTarFile,
+                                                     DEBUG_MODE=DEBUG_MODE,
+                                                     GLACIER_VAULT=GLACIER_VAULT,
+                                                     SECRET_ACCESS_KEY=SECRET_ACCESS_KEY,
+                                                     ACCESS_KEY=ACCESS_KEY,
+                                                     GLACIER_REALM=GLACIER_REALM)
+                        c.update_archive_id(archive_id)
+                        c.bytesize=total_bytesize
+                        c.filecount=filelength
+                        c.save()
+                        queue.task_done()
+                        transaction.commit()
                     if DEBUG_MODE:
                         logger.debug("done task: %s " % tempTarFile)
                 except Exception,exc:
@@ -200,7 +211,7 @@ def archiveFiles (tempTarFile=None):
 
 def main(argv):
     #set up all of the variables
-    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY
+    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY,DRY
     NUM_PROCS=settings.NUM_PROCS
     TEMP_DIR=settings.TEMP_DIR
     ACCESS_KEY=settings.ACCESS_KEY
@@ -212,14 +223,15 @@ def main(argv):
     USECELERY=settings.USECELERY
 
     try:
-        opts, args = getopt.getopt(argv, "hx:z:t:s:rd", [
+        opts, args = getopt.getopt(argv, "hx:z:t:s:rdn", [
                                 "help", 
                                 "olderthan=",
                                 "newerthan=",
                                 "description=",
                                 "tags=",
                                 "recursive",
-                                "debug"
+                                "debug",
+                                "dry"
                             ])
     except getopt.GetoptError:
         usage()
@@ -271,6 +283,9 @@ def main(argv):
         elif opt in ("-r","--recursive"):
             global RECURSE
             RECURSE=True
+        elif opt in ("-n","--dry"):
+            global DRY
+            DRY=True
     
     #set up logging
     global logger
@@ -286,7 +301,7 @@ def main(argv):
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
             for job in c.alljobs:
-                af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS])
+                af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS,DRY])
                 #archiveFiles.delay(4, 4)            
         else:
             pass
@@ -298,7 +313,7 @@ def main(argv):
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
             for i in range(NUM_PROCS):
-                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16)])
+                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16),DRY])
                 t.setDaemon(True)
                 t.start()
         else:
@@ -306,7 +321,7 @@ def main(argv):
             fileList.append(FILENAME)
             queue.put(fileList)    
             for i in range(NUM_PROCS):
-                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16)])
+                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16),DRY])
                 t.setDaemon(True)
                 t.start()
         
@@ -328,6 +343,7 @@ def usage():
     print ' -t|--tags= comma delimited list of keywords for later retrieval'
     print ' -s|--description= short description of archive'
     print ' -r --recursive'
+    print ' -n --dry'
     print
 
 if __name__ == "__main__":

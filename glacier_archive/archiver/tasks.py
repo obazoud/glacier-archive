@@ -24,7 +24,7 @@ celery = Celery('tasks', broker='redis://localhost')
 
 @celery.task
 @transaction.commit_manually
-def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[]):
+def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[],DRY=False):
     from archiver.archiveFiles import makeTar,uploadToGlacier
     global logger
     global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY
@@ -41,14 +41,16 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
     print "Got job %s-files" % len(job)
     try:
         c = Archives().archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
-        sid = transaction.savepoint()
+        if not DRY:
+            sid = transaction.savepoint()
         if DEBUG_MODE:
             logger.debug("Created archive in DB")
         #add files to temp archive on disk
         try:
             #add each to tarchive
-            makeTar(job,tempTarFile)
-            transaction.savepoint_commit(sid)
+            makeTar(job,tempTarFile,DRY)
+            if not DRY:
+                transaction.savepoint_commit(sid)
             if DEBUG_MODE:
                 logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
             #add each to DB
@@ -72,19 +74,22 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                                         )
                     total_bytesize=total_bytesize+bytesize
                     bulk.append(f)
-            ArchiveFiles.objects.bulk_create(bulk)
-            #upload to glacier
-            archive_id = uploadToGlacier(tempTarFile=tempTarFile,
-                                                 DEBUG_MODE=DEBUG_MODE,
-                                                 GLACIER_VAULT=GLACIER_VAULT,
-                                                 SECRET_ACCESS_KEY=SECRET_ACCESS_KEY,
-                                                 ACCESS_KEY=ACCESS_KEY,
-                                                 GLACIER_REALM=GLACIER_REALM)
-            c.update_archive_id(archive_id)
-            c.bytesize=total_bytesize
-            c.filecount=filelength
-            c.save()
-            transaction.commit()
+            if not DRY:
+                ArchiveFiles.objects.bulk_create(bulk)
+                #upload to glacier
+                archive_id = uploadToGlacier(tempTarFile=tempTarFile,
+                                                     DEBUG_MODE=DEBUG_MODE,
+                                                     GLACIER_VAULT=GLACIER_VAULT,
+                                                     SECRET_ACCESS_KEY=SECRET_ACCESS_KEY,
+                                                     ACCESS_KEY=ACCESS_KEY,
+                                                     GLACIER_REALM=GLACIER_REALM)
+                c.update_archive_id(archive_id)
+                c.bytesize=total_bytesize
+                c.filecount=filelength
+                c.save()
+                transaction.commit()
+            else:
+                transaction.rollback()
             if DEBUG_MODE:
                 logger.debug("done task: %s " % tempTarFile)
         except Exception,exc:
@@ -92,6 +97,6 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
             transaction.rollback()
     except Exception,exc:
         logger.error('Error creating archive final %s' % (exc))
-	print ('Error creating archive final %s' % (exc))
+        print ('Error creating archive final %s' % (exc))
         transaction.rollback()
     return
