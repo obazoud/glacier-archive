@@ -14,9 +14,11 @@ from django.contrib import messages
 from django.db import transaction
 from datetime import datetime
 from pytz import timezone
-from archiver.models import Archives,ArchiveFiles
+from archiver.models import Archives,ArchiveFiles,UserCache
 from archiver.crawler import Crawler
 from archiver.tasks import archiveFilesTask as af
+from guardian.shortcuts import assign,remove_perm
+from django.contrib.auth.models import User,Group
 
 from glacier.glacier import Connection as GlacierConnection
 from glacier.vault import Vault as GlacierVault
@@ -41,6 +43,7 @@ ARCHIVEMB=500
 GLACIER_REALM="us-east-1"
 USECELERY=False
 DRY=False
+EXTENDEDCIFS=False
 
 logger=logging.getLogger(__name__)
 queue = Queue()
@@ -108,23 +111,61 @@ def makeTar(fileList=None,tempfilename=None,dry=False):
         return
     tar = tarfile.open(tempfilename, "w")
     for name in fileList:
-        statinfo = os.stat(name)
+        n = name['rfile']
+        statinfo = os.stat(n)
         atime = statinfo.st_atime
         mtime = statinfo.st_mtime
-        tar.add(name)
+        tar.add(n)
         try:    
-            os.utime(name, (atime,mtime))
+            os.utime(n, (atime,mtime))
         except Exception,exc:
-            logger.error("Cannot change utime: %s" % name)
+            logger.error("Cannot change utime: %s" % n)
     tar.close()
     logger.debug("Created archive in tar: %s" % tempfilename)
     return     
+
+def addPerms(perms,f):
+    counter=0
+    for perm in perms:
+        try:
+            if counter==0:
+                owner_name = perm["name"]
+                owner_type = perm["type"]
+                assign('own',User.objects.get(username=owner_name), f)
+            elif counter==1:
+                group_name = perm["name"]
+                group_type = perm["type"]
+                assign('own',Group.objects.get(groupname=group_name), f)
+            elif counter>1:
+                acl_name = perm["name"]
+                acl_role = perm["role"]
+                acl_type = perm["type"]
+                if acl_type=="group":
+                    if acl_role=="READ":
+                        assign('read',Group.objects.get(groupname=acl_name), f)
+                    elif acl_role=="CHANGE":
+                        assign('write',Group.objects.get(groupname=acl_name), f)
+                    elif acl_role=="FULL":
+                        assign('own',Group.objects.get(groupname=acl_name), f)
+                else:
+                    if acl_role=="READ":
+                        assign('read',User.objects.get(username=acl_name), f)
+                    elif acl_role=="CHANGE":
+                        assign('write',User.objects.get(username=acl_name), f)
+                    elif acl_role=="FULL":
+                        assign('own',User.objects.get(username=acl_name), f)                            
+        except:
+            pass
+        counter=counter+1
+    return
+
 
 @transaction.commit_manually
 def archiveFiles (tempTarFile=None,dry=False):
     global queue
     global logger
     global GLACIER_VAULT
+    global EXTENDEDCIFS
         
     if queue.empty() == True:
         print "the Queue is empty!"
@@ -154,7 +195,8 @@ def archiveFiles (tempTarFile=None,dry=False):
                     filelength=len(job)
                     total_bytesize=0
                     if tempTarFile:
-                        for jobfile in job:
+                        for jobf in job:
+                            jobfile = jobf['rfile']
                             statinfo = os.stat(jobfile)
                             bytesize = statinfo.st_size
                             atime = statinfo.st_atime
@@ -170,6 +212,8 @@ def archiveFiles (tempTarFile=None,dry=False):
                                              )
                             total_bytesize=total_bytesize+bytesize
                             bulk.append(f)
+                            if EXTENDEDCIFS:
+                                addPerms(jobf['perms'],f)
                     if dry:
                         if DEBUG_MODE:
                             logger.debug("done task -- dry run -- %s " % tempTarFile)
@@ -211,7 +255,7 @@ def archiveFiles (tempTarFile=None,dry=False):
 
 def main(argv):
     #set up all of the variables
-    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY,DRY
+    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY,DRY,EXTENDEDCIFS,EXTENDEDNFS
     NUM_PROCS=settings.NUM_PROCS
     TEMP_DIR=settings.TEMP_DIR
     ACCESS_KEY=settings.ACCESS_KEY
@@ -223,7 +267,7 @@ def main(argv):
     USECELERY=settings.USECELERY
 
     try:
-        opts, args = getopt.getopt(argv, "hx:z:t:s:rdn", [
+        opts, args = getopt.getopt(argv, "hx:z:t:s:rdnef", [
                                 "help", 
                                 "olderthan=",
                                 "newerthan=",
@@ -231,7 +275,9 @@ def main(argv):
                                 "tags=",
                                 "recursive",
                                 "debug",
-                                "dry"
+                                "dry",
+                                "extendedcifs",
+                                "extendednfs"
                             ])
     except getopt.GetoptError:
         usage()
@@ -286,6 +332,12 @@ def main(argv):
         elif opt in ("-n","--dry"):
             global DRY
             DRY=True
+        elif opt in ("-e","--extendedcifs"):
+            global EXTENDEDCIFS
+            EXTENDEDCIFS=True
+        elif opt in ("-f","--extendednfs"):
+            global EXTENDEDNFS
+            EXTENDEDNFS=True
     
     #set up logging
     global logger
@@ -296,19 +348,19 @@ def main(argv):
     global queue
     if USECELERY:
         if DIR:
-            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY)
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS)
             c.set_newer(int(NEWERTHAN))
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
             for job in c.alljobs:
-                af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS,DRY])
+                af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS,DRY,EXTENDEDCIFS])
                 #archiveFiles.delay(4, 4)            
         else:
             pass
             #one file
     else:
         if DIR:
-            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY)
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS)
             c.set_newer(int(NEWERTHAN))
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
@@ -344,6 +396,8 @@ def usage():
     print ' -s|--description= short description of archive'
     print ' -r --recursive'
     print ' -n --dry'
+    print ' -e --extendedcifs'
+    print ' -f --extendednfs'
     print
 
 if __name__ == "__main__":

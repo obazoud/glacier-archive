@@ -24,8 +24,8 @@ celery = Celery('tasks', broker='redis://localhost')
 
 @celery.task
 @transaction.commit_manually
-def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[],DRY=False):
-    from archiver.archiveFiles import makeTar,uploadToGlacier
+def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[],DRY=False,EXTENDEDCIFS=False):
+    from archiver.archiveFiles import makeTar,uploadToGlacier,addPerms
     global logger
     global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY
     NUM_PROCS=settings.NUM_PROCS
@@ -58,7 +58,8 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
             filelength=len(job)
             total_bytesize=0
             if tempTarFile:
-                for jobfile in job:
+                for jobf in job:
+                    jobfile = jobf['rfile']
                     statinfo = os.stat(jobfile)
                     bytesize = statinfo.st_size
                     atime = statinfo.st_atime
@@ -74,6 +75,9 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                                         )
                     total_bytesize=total_bytesize+bytesize
                     bulk.append(f)
+                    if EXTENDEDCIFS:
+                        addPerms(jobf['perms'],f)
+                    
             if not DRY:
                 ArchiveFiles.objects.bulk_create(bulk)
                 #upload to glacier

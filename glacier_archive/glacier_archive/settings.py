@@ -111,6 +111,12 @@ TEMPLATE_DIRS = (
     # Don't forget to use absolute paths, not relative paths.
 )
 
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',
+    'guardian.backends.ObjectPermissionBackend',
+)
+
+
 INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -123,7 +129,8 @@ INSTALLED_APPS = (
     'haystack',
     'taggit',
     'archiver',
-    'djcelery'    
+    'djcelery',
+    'guardian'    
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
@@ -188,3 +195,8 @@ warnings.filterwarnings(
 
 USECELERY=True
 
+AD_LDAP = "ldap://hostname.org"
+AD_DN = "username"
+AD_PW = "password"
+AD_BASE = "dc=hostname,dc=org"
+ANONYMOUS_USER_ID = -1
