@@ -200,3 +200,5 @@ AD_DN = "username"
 AD_PW = "password"
 AD_BASE = "dc=hostname,dc=org"
 ANONYMOUS_USER_ID = -1
+import djcelery
+djcelery.setup_loader()
