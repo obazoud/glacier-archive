@@ -171,15 +171,15 @@ LOGGING = {
 }
 
 NUM_PROCS=2
-TEMP_DIR="/mnt/tmp"
-TEMP_RESTORE_DIR="/mnt/tmp/restore"
+TEMP_DIR="/tmp/glacier"
+TEMP_RESTORE_DIR="/tmp/glacier/restore"
 ACCESS_KEY="XXXX"
 SECRET_ACCESS_KEY="XXXX"
 GLACIER_VAULT="glaciervault"
 GLACIER_REALM="us-east-1"
 ELASTICSEARCH=True
-NUMFILES=100
-ARCHIVEMB=500
+NUMFILES=1000
+ARCHIVEMB=1000
 CHECKSECONDS=600
 HAYSTACK_CONNECTIONS = {
     'default': {
@@ -194,9 +194,10 @@ warnings.filterwarnings(
         RuntimeWarning, r'django\.db\.models\.fields')
 
 USECELERY=True
-
-AD_LDAP = "ldap://hostname.org"
-AD_DN = "username"
-AD_PW = "password"
-AD_BASE = "dc=hostname,dc=org"
+AD_LDAP = "ldap://itwdomp02.med.harvard.edu"
+AD_DN = "db165@med.harvard.edu"
+AD_PW = "D13tcoke11"
+AD_BASE = "dc=med,dc=harvard,dc=edu"
 ANONYMOUS_USER_ID = -1
+import djcelery
+djcelery.setup_loader()
