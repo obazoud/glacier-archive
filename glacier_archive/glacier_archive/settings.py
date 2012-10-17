@@ -194,10 +194,10 @@ warnings.filterwarnings(
         RuntimeWarning, r'django\.db\.models\.fields')
 
 USECELERY=True
-AD_LDAP = "ldap://itwdomp02.med.harvard.edu"
-AD_DN = "db165@med.harvard.edu"
-AD_PW = "D13tcoke11"
-AD_BASE = "dc=med,dc=harvard,dc=edu"
+AD_LDAP = "ldap://xxx"
+AD_DN = "db165@xxxx"
+AD_PW = "xxxx"
+AD_BASE = "xxxx"
 ANONYMOUS_USER_ID = -1
 import djcelery
 djcelery.setup_loader()
