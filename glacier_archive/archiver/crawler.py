@@ -33,7 +33,7 @@ class Crawler(object):
         for perm in gf:
             permhash={}
             if counter==0:
-                uc = UserCache.lookupSID(user_sid=str(perm))
+                uc = UserCache().lookupSID(str(perm))
                 try:
                     name =  uc[0]
                     type = uc[1]
@@ -44,7 +44,7 @@ class Crawler(object):
                     permhash={"role":"owner","name":name,"type":type}
                 perms.append(permhash)                
             elif counter==1:
-                uc = UserCache.lookupSID(user_sid=str(perm))
+                uc = UserCache().lookupSID(user_sid=str(perm))
                 try:
                     name =  uc[0]
                     type = uc[1]
@@ -56,7 +56,7 @@ class Crawler(object):
             else:
                 permstring = str(perm)
                 sid = permstring[0:permstring.find('::')]
-                uc = UserCache.lookupSID(user_sid=sid)
+                uc = UserCache().lookupSID(user_sid=sid)
                 try:
                     name = uc[0]
                     type = uc[1]

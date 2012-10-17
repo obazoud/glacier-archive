@@ -55,6 +55,7 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                 logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
             #add each to DB
             bulk=[]
+	    permissions=[]
             filelength=len(job)
             total_bytesize=0
             if tempTarFile:
@@ -76,10 +77,14 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                     total_bytesize=total_bytesize+bytesize
                     bulk.append(f)
                     if EXTENDEDCIFS:
-                        addPerms(jobf['perms'],f)
+			permissions.append({"perm":jobf['perms'],"fileobj":f})
+                        #addPerms(jobf['perms'],f)
                     
             if not DRY:
                 ArchiveFiles.objects.bulk_create(bulk)
+		if EXTENDEDCIFS:
+			for p in permissions:
+				addPerms(p["perm"],p["fileobj"])
                 #upload to glacier
                 archive_id = uploadToGlacier(tempTarFile=tempTarFile,
                                                      DEBUG_MODE=DEBUG_MODE,

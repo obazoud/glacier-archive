@@ -135,18 +135,18 @@ def addPerms(perms,f):
             elif counter==1:
                 group_name = perm["name"]
                 group_type = perm["type"]
-                assign('own',Group.objects.get(groupname=group_name), f)
+                assign('own',Group.objects.get(name=group_name), f)
             elif counter>1:
                 acl_name = perm["name"]
                 acl_role = perm["role"]
                 acl_type = perm["type"]
                 if acl_type=="group":
                     if acl_role=="READ":
-                        assign('read',Group.objects.get(groupname=acl_name), f)
+                        assign('read',Group.objects.get(name=acl_name), f)
                     elif acl_role=="CHANGE":
-                        assign('write',Group.objects.get(groupname=acl_name), f)
+                        assign('write',Group.objects.get(name=acl_name), f)
                     elif acl_role=="FULL":
-                        assign('own',Group.objects.get(groupname=acl_name), f)
+                        assign('own',Group.objects.get(name=acl_name), f)
                 else:
                     if acl_role=="READ":
                         assign('read',User.objects.get(username=acl_name), f)
@@ -154,7 +154,8 @@ def addPerms(perms,f):
                         assign('write',User.objects.get(username=acl_name), f)
                     elif acl_role=="FULL":
                         assign('own',User.objects.get(username=acl_name), f)                            
-        except:
+        except Exception,exc:
+	    logger.error("Error adding permissions: %s" % exc )
             pass
         counter=counter+1
     return
@@ -192,6 +193,7 @@ def archiveFiles (tempTarFile=None,dry=False):
                         logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
                     #add each to DB
                     bulk=[]
+		    permissions=[]
                     filelength=len(job)
                     total_bytesize=0
                     if tempTarFile:
@@ -213,7 +215,8 @@ def archiveFiles (tempTarFile=None,dry=False):
                             total_bytesize=total_bytesize+bytesize
                             bulk.append(f)
                             if EXTENDEDCIFS:
-                                addPerms(jobf['perms'],f)
+				permissions.append({"perm":jobf['perms'],"fileobj":f})
+                                #addPerms(jobf['perms'],f)
                     if dry:
                         if DEBUG_MODE:
                             logger.debug("done task -- dry run -- %s " % tempTarFile)
@@ -221,6 +224,9 @@ def archiveFiles (tempTarFile=None,dry=False):
                         queue.task_done()                        
                     else:
                         ArchiveFiles.objects.bulk_create(bulk)
+			if EXTENDEDCIFS:
+				for p in permissions:
+					addPerms(p["perm"],p["fileobj"])
                     #upload to glacier
                         archive_id = uploadToGlacier(tempTarFile=tempTarFile,
                                                      DEBUG_MODE=DEBUG_MODE,

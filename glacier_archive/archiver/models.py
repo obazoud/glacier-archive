@@ -139,7 +139,7 @@ class UserCache(models.Model):
         except UserCache.DoesNotExist:
             try:
                 us = resolveUsernameOrGroup(user_sid)
-                if us[1]=="user":
+                if us[1]=="user" or us[1]=="person":
                     try:
                         u = User.objects.get(username=us[0])
                     except:
@@ -150,7 +150,7 @@ class UserCache(models.Model):
                         g = Group.objects.get(username=us[0])
                     except:
                         try:
-                            g = Group(groupname=us[0])
+                            g = Group(name=us[0])
                             g.save()
                         except:
                             pass
