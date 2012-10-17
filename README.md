@@ -13,11 +13,11 @@ Python 2.7+
 
 Django 1.4+ (and some knowledge about basic Django setup. Yes, I know this is command-line, but it was the fastest path to a good DB/search)
 
-Haystack w/Search of Choice (I picked elasticsearch)
+Haystack w/Search of Choice (I picked elasticsearch). Use latest Haystack beta  
 
 Glacier libraries for Python (https://github.com/paulengstler/glacier). You might want to use my fork.  
 
-Celery and Redis if you're doing multi-threading.  
+Celery and Redis if you're doing multi-threading. (celery-with-redis)  
 
 Django Settings File
 ===========================
