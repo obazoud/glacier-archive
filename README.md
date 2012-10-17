@@ -67,6 +67,8 @@ options:
 -x <integer> # of days a file's atime is older than now() to include it in the archive. If selected, archive will only include detected files.
 -z <integer> # of days a file's atime is newer to include it in the archive. If selected, archive will only include detected files.  
 -n dry run
+-e capture extended cifs attributes  
+-f capture extended nfs4 attributes  
 filepath 
 
 example:
