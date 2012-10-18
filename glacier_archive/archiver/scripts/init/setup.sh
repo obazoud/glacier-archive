@@ -12,3 +12,4 @@ cp -rfp celeryevcam /etc/init.d/celeryevcam
 chmod +x /etc/init.d/celeryevcam
 cp -rfp celeryd.conf /etc/default/celeryd
 cp -rfp celerybeat.conf /etc/default/celerybeat
+cp -rfp celeryev.conf /etc/default/celeryev

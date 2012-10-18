@@ -91,7 +91,7 @@
 #set -e
 
 DEFAULT_PID_FILE="/var/run/celeryev.pid"
-DEFAULT_LOG_FILE="/var/log/celeryev.log"
+DEFAULT_LOG_FILE="/var/log/celery/celeryev.log"
 DEFAULT_LOG_LEVEL="INFO"
 DEFAULT_CELERYEV="/usr/bin/celeryev"
 
