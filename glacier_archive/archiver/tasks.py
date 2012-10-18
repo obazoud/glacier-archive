@@ -5,8 +5,6 @@ base_parent = os.path.dirname(base)
 sys.path.append(base) 
 sys.path.append(base_parent)
 #logger=logging.getLogger(__name__)
-from celery.utils.log import get_task_logger
-logger = get_task_logger(__name__)
 
 import os,collections,sys, time, ConfigParser,tarfile,random,logging,string,getopt
 from threading import Thread
@@ -26,7 +24,8 @@ celery = Celery('tasks', broker='redis://localhost')
 @transaction.commit_manually
 def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[],DRY=False,EXTENDEDCIFS=False):
     from archiver.archiveFiles import makeTar,uploadToGlacier,addPerms
-    global logger
+    from celery.utils.log import get_task_logger
+    logger = get_task_logger(__name__)
     global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY
     NUM_PROCS=settings.NUM_PROCS
     TEMP_DIR=settings.TEMP_DIR
@@ -38,7 +37,7 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
     GLACIER_REALM=settings.GLACIER_REALM
     USECELERY=settings.USECELERY
         
-    print "Got job %s-files" % len(job)
+    logger.debug("Got job %s-files,%s" % (len(job),EXTENDEDCIFS))
     try:
         c = Archives().archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
         if not DRY:
@@ -66,7 +65,11 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                     atime = statinfo.st_atime
                     mtime = statinfo.st_mtime
                     ctime = statinfo.st_ctime
-                    f = ArchiveFiles(archive=c,
+                    afo = ArchiveFiles()
+                    afo_id = afo.get_next_data_id()
+
+                    f = ArchiveFiles(	id=afo_id,
+					archive=c,
                                         startdate=datetime.now(),
                                         bytesize=bytesize,
                                         filepath=jobfile,
@@ -82,8 +85,10 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                     
             if not DRY:
                 ArchiveFiles.objects.bulk_create(bulk)
+		transaction.savepoint()
 		if EXTENDEDCIFS:
 			for p in permissions:
+				logger.debug("TEST %s" % (p["fileobj"].pk))
 				addPerms(p["perm"],p["fileobj"])
                 #upload to glacier
                 archive_id = uploadToGlacier(tempTarFile=tempTarFile,

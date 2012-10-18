@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models,connections
 from django.contrib.auth.models import User,Group
 from datetime import datetime
 from django.conf import settings
@@ -57,7 +57,7 @@ class ArchiveFiles(models.Model):
     filecdate = models.DateTimeField(blank=True,null=True)
 
     class Meta:
-        app_label = 'archiver',
+        #app_label = 'archiver',
         permissions = (
                 ('read', 'read file'),
                 ('write', 'write file'),
@@ -66,6 +66,11 @@ class ArchiveFiles(models.Model):
 
     def __unicode__(self):
         return self.filepath
+
+    def get_next_data_id(self):
+        cursor = connections['default'].cursor()
+        cursor.execute("select R_ObjectId_nextval()")
+        return cursor.fetchone()[0]
     
     def archivefile_create(self,filepath=None,bytesize=0,fileadate=None,filemdate=None,filecdate=None,archive=None):
         self.archives = archive
@@ -117,7 +122,8 @@ def resolveUsernameOrGroup(sid):
         name =  result_id[0][1]["sAMAccountName"][0]
         utype = result_id[0][1]["objectClass"][1]
         return (name,utype)
-    except:
+    except Exception,exc:
+	logger.debug("Cannot resolve: %s %s" % (result_id,exc))
         return None
     
     
@@ -133,12 +139,16 @@ class UserCache(models.Model):
         return self.user_obj.username
     
     def lookupSID(self,user_sid=None):
+	if user_sid=="S-1-1-0":
+		return("AnonymousUser","person")
         try:
             uc = UserCache.objects.get(user_sid=user_sid)
             return (uc.user_obj,uc.user_class)
         except UserCache.DoesNotExist:
             try:
                 us = resolveUsernameOrGroup(user_sid)
+		if not us:
+			return
                 if us[1]=="user" or us[1]=="person":
                     try:
                         u = User.objects.get(username=us[0])
@@ -160,10 +170,10 @@ class UserCache(models.Model):
                                user_class=us[1])
                 uc.save()
                 return (uc.user_obj,uc.user_class)
-            except:
+            except Exception,exc:
                 try:
                     uc = UserCache.objects.get(user_sid=user_sid)
                     return (uc.user_obj,uc.user_class)
                 except Exception,exc:
-                    logger.error("cannot create UserCache")
+                    logger.error("cannot create UserCache:%s" % (exc))
                     return None

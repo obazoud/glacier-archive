@@ -119,7 +119,8 @@ def makeTar(fileList=None,tempfilename=None,dry=False):
         try:    
             os.utime(n, (atime,mtime))
         except Exception,exc:
-            logger.error("Cannot change utime: %s" % n)
+	    pass
+            #logger.error("Cannot change utime: %s" % n)
     tar.close()
     logger.debug("Created archive in tar: %s" % tempfilename)
     return     
