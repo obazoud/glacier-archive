@@ -1,9 +1,12 @@
-import os, math,logging
+import os, math,logging,random,string
 from datetime import timedelta
 from datetime import datetime
 logger=logging.getLogger(__name__)
 from cifsacl import getfacl
 from archiver.models import Archives,ArchiveFiles,UserCache
+from archiver.tasks import archiveFilesTask as af
+
+
 
 class Crawler(object):
     """ Crawler API """
@@ -17,8 +20,13 @@ class Crawler(object):
     alljobs=[]
     usecelery=False
     extendedcifs=False
+    description=""
+    debug=False
+    tags=[]
+    dry=False
+    temp_dir=""
 
-    def __init__(self, filepath=None,recurse=False,numfiles=1000,archivemb=500,queue=queue,usecelery=False,extendedcifs=False):
+    def __init__(self, filepath=None,recurse=False,numfiles=1000,archivemb=500,queue=queue,usecelery=False,extendedcifs=False,description="",debug=False,tags=None,dry=False,temp_dir=""):
         self.filepath=filepath
         self.recurse=recurse
         self.numfiles=numfiles
@@ -26,7 +34,12 @@ class Crawler(object):
         self.queue=queue
         self.usecelery=usecelery
         self.extendedcifs=extendedcifs
-        
+	self.description=description
+	self.debug=debug
+	self.tags=tags
+	self.dry=dry
+	self.temp_dir=temp_dir
+       
     def buildPerms(self,perms,rfile):
         gf = getfacl(rfile)
         counter = 0
@@ -75,6 +88,7 @@ class Crawler(object):
         self.oldertime=oldertime
 
     def addFile(self,rfile,statinfo):
+	from archiver.archiveFiles import id_generator 
         kilo_byte_size = self.arraysize/1024
         mega_byte_size = kilo_byte_size/1024
         perms=[]
@@ -89,6 +103,8 @@ class Crawler(object):
             jobcopy = self.jobarray
             if self.usecelery:
                 self.alljobs.append(jobcopy)
+		id_gen = self.temp_dir+"/"+id_generator(size=16)
+		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs])
             else:
                 self.queue.put(jobcopy)
             self.jobarray=[]
@@ -99,6 +115,7 @@ class Crawler(object):
     
     def recurseCrawl(self,filepath=filepath):
         global logger
+	from archiver.archiveFiles import id_generator
         for (path, dirs, files) in os.walk(filepath):
             for fi in files:
                 kilo_byte_size = self.arraysize/1024
@@ -132,6 +149,8 @@ class Crawler(object):
         if self.usecelery:
             if len(jobcopy)>0:
                 self.alljobs.append(jobcopy)
+		id_gen=self.temp_dir+"/"+id_generator(size=16)
+		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs])
         else:    
             if len(jobcopy)>0:
                 self.queue.put(jobcopy)

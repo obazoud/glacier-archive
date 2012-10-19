@@ -157,7 +157,7 @@ class UserCache(models.Model):
 
                 if us[1]=="group":
                     try:
-                        g = Group.objects.get(username=us[0])
+                        g = Group.objects.get(name=us[0])
                     except:
                         try:
                             g = Group(name=us[0])

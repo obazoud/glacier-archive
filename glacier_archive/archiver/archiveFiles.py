@@ -376,19 +376,19 @@ def main(argv):
     global queue
     if USECELERY:
         if DIR:
-            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS)
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS,description=DESCRIPTION,debug=DEBUG_MODE,tags=TAGS,dry=DRY,temp_dir=TEMP_DIR)
             c.set_newer(int(NEWERTHAN))
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
-            for job in c.alljobs:
-                af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS,DRY,EXTENDEDCIFS])
+            #for job in c.alljobs:
+                #af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS,DRY,EXTENDEDCIFS])
                 #archiveFiles.delay(4, 4)            
         else:
             pass
             #one file
     else:
         if DIR:
-            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS)
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS,description=DESCRIPTION,debug=DEBUG_MODE,tags=TAGS,dry=DRY,temp_dir=TEMP_DIR)
             c.set_newer(int(NEWERTHAN))
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
