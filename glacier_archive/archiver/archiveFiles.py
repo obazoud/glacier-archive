@@ -24,6 +24,10 @@ from glacier.glacier import Connection as GlacierConnection
 from glacier.vault import Vault as GlacierVault
 from glacier.archive import Archive as GlacierArchive
 
+from boto.glacier.layer1 import Layer1
+from boto.glacier.vault import Vault
+from boto.glacier.concurrent import ConcurrentUploader
+
 NUM_PROCS=1
 TEMP_DIR="/tmp"
 ACCESS_KEY=""
@@ -64,44 +68,61 @@ def uploadToGlacier(tempTarFile=None,
     # Establish a connection to the Glacier
     glacier_vault_in=None
     my_archive=None
+    archive_id=None
     try:
-        my_glacier = GlacierConnection(ACCESS_KEY,SECRET_ACCESS_KEY,region=GLACIER_REALM)
+        #my_glacier = GlacierConnection(ACCESS_KEY,SECRET_ACCESS_KEY,region=GLACIER_REALM)
+	my_glacier = Layer1(aws_access_key_id=ACCESS_KEY,aws_secret_access_key=SECRET_ACCESS_KEY,region_name=GLACIER_REALM)
         if DEBUG_MODE:
             logger.debug("Glacier Connection: %s" % my_glacier)
         # Create a new vault (not neccessary if you already have one!)
         if GLACIER_VAULT:
-            glacier_vault_in = my_glacier.get_vault(GLACIER_VAULT)
-            vaults = my_glacier.get_all_vaults()
+            #glacier_vault_in = my_glacier.get_vault(GLACIER_VAULT)
+            #vaults = my_glacier.get_all_vaults()
+	    vaults = my_glacier.list_vaults()
+	    glacier_vault_in = None
             if GLACIER_VAULT not in vaults:
                 glacier_vault_in = my_glacier.create_vault(GLACIER_VAULT)
         else:
-            glacier_vault_in = my_glacier.create_vault(id_generator(size=16))
+	    GLACIER_VAULT = id_generator(size=16)
+            glacier_vault_in = my_glacier.create_vault(GLACIER_VAULT)
 
         if DEBUG_MODE:
             logger.debug("Glacier Vault: %s" % glacier_vault_in)
         
-        my_archive = GlacierArchive(tempTarFile)
+        #my_archive = GlacierArchive(tempTarFile)
+	uploader = ConcurrentUploader(my_glacier, GLACIER_VAULT, 32*1024*1024)
+
         if DEBUG_MODE:
-            logger.debug("Archive created in mem: %s " % my_archive)
+            #logger.debug("Archive created in mem: %s " % my_archive)
+	    logger.debug("Archive created in mem:%s" % uploader )
     
-        glacier_vault_in.upload(my_archive)
+        #glacier_vault_in.upload(my_archive)
+	archive_id = uploader.upload(tempTarFile, tempTarFile)
         if DEBUG_MODE:
             logger.debug("upload created: %s" % glacier_vault_in)
     except Exception,exc:
         if exc.args>0:
             x, y = exc.args
-            logger.error("Error in glacier upload %s" % json.loads(y.read()))
+	    errstr = None
+	    try:
+		errstr = json.loads(y.read())
+	    except:
+		errstr = y
+            logger.error("Error in glacier upload %s" % errstr)
         else:
             logger.error("Error in glacier upload %s" % (exc))
 
-    if my_archive:
+    #if my_archive:
+    if archive_id:
         try:
             os.unlink(tempTarFile)
         except Exception,exc:
             logger.error("couldn't unlink file: %s" % tempTarFile)
         if DEBUG_MODE:
-            logger.debug("Archive created: %s" % my_archive.id)
-        return my_archive.id    
+            #logger.debug("Archive created: %s" % my_archive.id)
+	    logger.debug("Archive created: %s" % archive_id)
+        #return my_archive.id
+	return archive_id    
     return 0
 
 def makeTar(fileList=None,tempfilename=None,dry=False):
@@ -156,7 +177,7 @@ def addPerms(perms,f):
                     elif acl_role=="FULL":
                         assign('own',User.objects.get(username=acl_name), f)                            
         except Exception,exc:
-	    logger.error("Error adding permissions: %s" % exc )
+	    logger.error("Error adding permissions: %s %s %s" % (exc, perm["name"], perm["type"]) )
             pass
         counter=counter+1
     return
