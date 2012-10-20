@@ -17,6 +17,8 @@ Haystack w/Search of Choice (I picked elasticsearch). Use latest Haystack beta
 
 Glacier libraries for Python (https://github.com/paulengstler/glacier). You might want to use my fork.  
 
+Boto w/Glacier libraries (2.6.0).  
+
 Celery and Redis if you're doing multi-threading. (celery-with-redis)  
 
 Django Settings File
@@ -33,8 +35,16 @@ ARCHIVEMB - Default 500 - Number of MB per tarball. When 500MB in a tarball are 
 HAYSTACK_CONNECTIONS - By default, it's set up for elasticsearch. Configure it for your needs.  
 CHECKSECONDS - (600) - The number of seconds to wait between checking for finished archive retrieval tasks.  
 USECELERY=True  - Use Celery for multithreaded queues. Currently multithreading with Haystack is broken so if you're going to use multithreads, use this. Requires you to set-up Celery.  
+
 BROKER_URL = 'redis://localhost:6379/0'  - Broker URL. Redis by default.  
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by default.
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by default.  
+
+AD_LDAP = "ldap://xxxx" - If doing extended attributes, used for lookups.  
+AD_DN = "name@xxx.xxx" - If doing extended attributes, used for lookups.  
+AD_PW = "password" - If doing extended attributes, used for lookups.  
+AD_BASE = "dc=xxx,dc=xxx" - If doing extended attributes, used for lookups.  
+
+
 
 Setup
 =========================
@@ -120,7 +130,5 @@ ToDo
 API for archive.
 
 Scripts to do retention. (when files are archived, delete archived files)
-
-Integrate with Celery
 
 Integrate with NoSQL backend.
