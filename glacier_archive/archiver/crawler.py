@@ -39,14 +39,14 @@ class Crawler(object):
         self.queue=queue
         self.usecelery=usecelery
         self.extendedcifs=extendedcifs
-	self.description=description
-	self.debug=debug
-	self.tags=tags
-	self.dry=dry
-	self.temp_dir=temp_dir
+        self.description=description
+        self.debug=debug
+        self.tags=tags
+        self.dry=dry
+        self.temp_dir=temp_dir
         crawl = Crawl(crawlpath=filepath)
         crawl.save()
-	self.crawlobj=crawl
+        self.crawlobj=crawl
         self.crawlid=crawl.id
        
     def buildPerms(self,perms,rfile):
@@ -97,7 +97,7 @@ class Crawler(object):
         self.oldertime=oldertime
 
     def addFile(self,rfile,statinfo):
-	from archiver.archiveFiles import id_generator 
+        from archiver.archiveFiles import id_generator 
         kilo_byte_size = self.arraysize/1024
         mega_byte_size = kilo_byte_size/1024
         perms=[]
@@ -111,11 +111,11 @@ class Crawler(object):
             jobcopy = self.jobarray
             if self.usecelery:
                 self.alljobs.append(jobcopy)
-		id_gen = self.temp_dir+"/"+id_generator(size=16)
-		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
+                id_gen = self.temp_dir+"/"+id_generator(size=16)
+                af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
             else:
                 self.queue.put(jobcopy)
-	    self.totaljobsize=self.arraysize+self.totaljobsize
+            self.totaljobsize=self.arraysize+self.totaljobsize
             self.jobarray=[]
             self.arraysize=0
             self.jobarray.append({"rfile":rfile,"perms":perms})
@@ -124,7 +124,7 @@ class Crawler(object):
     
     def recurseCrawl(self,filepath=filepath):
         global logger
-	from archiver.archiveFiles import id_generator
+        from archiver.archiveFiles import id_generator
         for (path, dirs, files) in os.walk(filepath):
             for fi in files:
                 kilo_byte_size = self.arraysize/1024
@@ -158,14 +158,14 @@ class Crawler(object):
         if self.usecelery:
             if len(jobcopy)>0:
                 self.alljobs.append(jobcopy)
-		id_gen=self.temp_dir+"/"+id_generator(size=16)
-		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
+                id_gen=self.temp_dir+"/"+id_generator(size=16)
+                af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
         else:    
             if len(jobcopy)>0:
                 self.queue.put(jobcopy)
         self.totaljobsize=self.arraysize+self.totaljobsize
-	self.crawlobj(totalbytes=self.totaljobsize)
-	self.crawlobj.save()
+        self.crawlobj(totalbytes=self.totaljobsize)
+        self.crawlobj.save()
         logger.info("Done crawl "+filepath+" "+self.crawlid+" "+self.totaljobsize+" bytes")
             
         return    

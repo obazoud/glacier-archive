@@ -16,7 +16,7 @@ from django.contrib import messages
 from django.db import transaction
 from datetime import datetime
 from pytz import timezone
-from archiver.models import Archives,ArchiveFiles
+from archiver.models import Archives,ArchiveFiles,Crawl
 
 celery = Celery('tasks', broker='redis://localhost')
 
@@ -54,7 +54,7 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                 logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
             #add each to DB
             bulk=[]
-	    permissions=[]
+            permissions=[]
             filelength=len(job)
             total_bytesize=0
             if tempTarFile:
@@ -68,26 +68,25 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                     afo = ArchiveFiles()
                     afo_id = afo.get_next_data_id()
 
-                    f = ArchiveFiles(	id=afo_id,
-					archive=c,
-                                        startdate=datetime.now(),
-                                        bytesize=bytesize,
-                                        filepath=jobfile,
-                                        fileadate=datetime.fromtimestamp(atime),
-                                        filecdate=datetime.fromtimestamp(ctime),
-                                        filemdate=datetime.fromtimestamp(mtime),
-                                        )
+                    f = ArchiveFiles(id=afo_id,
+                                      archive=c,
+                                      startdate=datetime.now(),
+                                      bytesize=bytesize,
+                                      filepath=jobfile,
+                                      fileadate=datetime.fromtimestamp(atime),
+                                      filecdate=datetime.fromtimestamp(ctime),
+                                      filemdate=datetime.fromtimestamp(mtime),
+                    )
                     total_bytesize=total_bytesize+bytesize
                     bulk.append(f)
                     if EXTENDEDCIFS:
-			permissions.append({"perm":jobf['perms'],"fileobj":f})
-                logger.info("Total size for Task:" %s (total_bytesize))    
+                        permissions.append({"perm":jobf['perms'],"fileobj":f})
             if not DRY:
                 ArchiveFiles.objects.bulk_create(bulk)
-		transaction.savepoint()
-		if EXTENDEDCIFS:
-			for p in permissions:
-				addPerms(p["perm"],p["fileobj"])
+                transaction.savepoint()
+                if EXTENDEDCIFS:
+                    for p in permissions:
+                        addPerms(p["perm"],p["fileobj"])
                 #upload to glacier
                 archive_id = uploadToGlacier(tempTarFile=tempTarFile,
                                                      DEBUG_MODE=DEBUG_MODE,
@@ -99,9 +98,14 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                 c.bytesize=total_bytesize
                 c.filecount=filelength
                 c.save()
-		crawl = Crawl.objects.get(id=crawlid)
-		crawl(bytesuploaded=(crawl.bytesuploaded+total_bytesize))
-		crawl.save()
+                try:
+                    crawl = Crawl.objects.get(id=crawlid)
+                    crawl(bytesuploaded=(crawl.bytesuploaded+total_bytesize))
+                    crawl.save()
+                    transaction.savepoint()
+                except Exception,exc:
+                    logger.error("Error with updating crawl stats: %s" % (exc))
+                    
                 transaction.commit()
             else:
                 transaction.rollback()
@@ -114,5 +118,5 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
         logger.error('Error creating archive final %s' % (exc))
         print ('Error creating archive final %s' % (exc))
         transaction.rollback()
-    logger.info("Finished job %s-files,%s" % (len(job),DESCRIPTION))
+    logger.info("Finished job %s-files,%s,%s" % (len(job),DESCRIPTION,crawlid))
     return

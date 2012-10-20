@@ -71,43 +71,43 @@ def uploadToGlacier(tempTarFile=None,
     archive_id=None
     try:
         #my_glacier = GlacierConnection(ACCESS_KEY,SECRET_ACCESS_KEY,region=GLACIER_REALM)
-	my_glacier = Layer1(aws_access_key_id=ACCESS_KEY,aws_secret_access_key=SECRET_ACCESS_KEY,region_name=GLACIER_REALM)
+        my_glacier = Layer1(aws_access_key_id=ACCESS_KEY,aws_secret_access_key=SECRET_ACCESS_KEY,region_name=GLACIER_REALM)
         if DEBUG_MODE:
             logger.debug("Glacier Connection: %s" % my_glacier)
         # Create a new vault (not neccessary if you already have one!)
         if GLACIER_VAULT:
             #glacier_vault_in = my_glacier.get_vault(GLACIER_VAULT)
             #vaults = my_glacier.get_all_vaults()
-	    vaults = my_glacier.list_vaults()
-	    glacier_vault_in = None
+            vaults = my_glacier.list_vaults()
+            glacier_vault_in = None
             if GLACIER_VAULT not in vaults:
                 glacier_vault_in = my_glacier.create_vault(GLACIER_VAULT)
         else:
-	    GLACIER_VAULT = id_generator(size=16)
+            GLACIER_VAULT = id_generator(size=16)
             glacier_vault_in = my_glacier.create_vault(GLACIER_VAULT)
 
         if DEBUG_MODE:
             logger.debug("Glacier Vault: %s" % glacier_vault_in)
         
         #my_archive = GlacierArchive(tempTarFile)
-	uploader = ConcurrentUploader(my_glacier, GLACIER_VAULT, 32*1024*1024)
+        uploader = ConcurrentUploader(my_glacier, GLACIER_VAULT, 32*1024*1024)
 
         if DEBUG_MODE:
             #logger.debug("Archive created in mem: %s " % my_archive)
-	    logger.debug("Archive created in mem:%s" % uploader )
+            logger.debug("Archive created in mem:%s" % uploader )
     
         #glacier_vault_in.upload(my_archive)
-	archive_id = uploader.upload(tempTarFile, tempTarFile)
+        archive_id = uploader.upload(tempTarFile, tempTarFile)
         if DEBUG_MODE:
             logger.debug("upload created: %s" % glacier_vault_in)
     except Exception,exc:
         if exc.args>0:
             x, y = exc.args
-	    errstr = None
-	    try:
-		errstr = json.loads(y.read())
-	    except:
-		errstr = y
+            errstr = None
+            try:
+                errstr = json.loads(y.read())
+            except:
+                errstr = y
             logger.error("Error in glacier upload %s" % errstr)
         else:
             logger.error("Error in glacier upload %s" % (exc))
@@ -120,9 +120,9 @@ def uploadToGlacier(tempTarFile=None,
             logger.error("couldn't unlink file: %s" % tempTarFile)
         if DEBUG_MODE:
             #logger.debug("Archive created: %s" % my_archive.id)
-	    logger.debug("Archive created: %s" % archive_id)
+            logger.debug("Archive created: %s" % archive_id)
         #return my_archive.id
-	return archive_id    
+        return archive_id    
     return 0
 
 def makeTar(fileList=None,tempfilename=None,dry=False):
@@ -140,7 +140,7 @@ def makeTar(fileList=None,tempfilename=None,dry=False):
         try:    
             os.utime(n, (atime,mtime))
         except Exception,exc:
-	    pass
+            pass
             #logger.error("Cannot change utime: %s" % n)
     tar.close()
     logger.debug("Created archive in tar: %s" % tempfilename)
@@ -177,7 +177,7 @@ def addPerms(perms,f):
                     elif acl_role=="FULL":
                         assign('own',User.objects.get(username=acl_name), f)                            
         except Exception,exc:
-	    logger.error("Error adding permissions: %s %s %s" % (exc, perm["name"], perm["type"]) )
+            logger.error("Error adding permissions: %s %s %s" % (exc, perm["name"], perm["type"]) )
             pass
         counter=counter+1
     return
@@ -215,7 +215,7 @@ def archiveFiles (tempTarFile=None,dry=False):
                         logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
                     #add each to DB
                     bulk=[]
-		    permissions=[]
+                    permissions=[]
                     filelength=len(job)
                     total_bytesize=0
                     if tempTarFile:
@@ -237,7 +237,7 @@ def archiveFiles (tempTarFile=None,dry=False):
                             total_bytesize=total_bytesize+bytesize
                             bulk.append(f)
                             if EXTENDEDCIFS:
-				permissions.append({"perm":jobf['perms'],"fileobj":f})
+                                permissions.append({"perm":jobf['perms'],"fileobj":f})
                                 #addPerms(jobf['perms'],f)
                     if dry:
                         if DEBUG_MODE:
@@ -246,22 +246,22 @@ def archiveFiles (tempTarFile=None,dry=False):
                         queue.task_done()                        
                     else:
                         ArchiveFiles.objects.bulk_create(bulk)
-			if EXTENDEDCIFS:
-				for p in permissions:
-					addPerms(p["perm"],p["fileobj"])
+                    if EXTENDEDCIFS:
+                        for p in permissions:
+                            addPerms(p["perm"],p["fileobj"])
                     #upload to glacier
-                        archive_id = uploadToGlacier(tempTarFile=tempTarFile,
+                    archive_id = uploadToGlacier(tempTarFile=tempTarFile,
                                                      DEBUG_MODE=DEBUG_MODE,
                                                      GLACIER_VAULT=GLACIER_VAULT,
                                                      SECRET_ACCESS_KEY=SECRET_ACCESS_KEY,
                                                      ACCESS_KEY=ACCESS_KEY,
                                                      GLACIER_REALM=GLACIER_REALM)
-                        c.update_archive_id(archive_id)
-                        c.bytesize=total_bytesize
-                        c.filecount=filelength
-                        c.save()
-                        queue.task_done()
-                        transaction.commit()
+                    c.update_archive_id(archive_id)
+                    c.bytesize=total_bytesize
+                    c.filecount=filelength
+                    c.save()
+                    queue.task_done()
+                    transaction.commit()
                     if DEBUG_MODE:
                         logger.debug("done task: %s " % tempTarFile)
                 except Exception,exc:

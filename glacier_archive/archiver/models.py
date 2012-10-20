@@ -128,7 +128,7 @@ def resolveUsernameOrGroup(sid):
         utype = result_id[0][1]["objectClass"][1]
         return (name,utype)
     except Exception,exc:
-	logger.debug("Cannot resolve: %s %s" % (result_id,exc))
+        logger.debug("Cannot resolve: %s %s" % (result_id,exc))
         return None
     
     
