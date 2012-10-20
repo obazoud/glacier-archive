@@ -14,7 +14,7 @@ from django.contrib import messages
 from django.db import transaction
 from datetime import datetime
 from pytz import timezone
-from archiver.models import Archives,ArchiveFiles,UserCache
+from archiver.models import Archives,ArchiveFiles,UserCache,Crawl
 from archiver.crawler import Crawler
 from archiver.tasks import archiveFilesTask as af
 from guardian.shortcuts import assign,remove_perm

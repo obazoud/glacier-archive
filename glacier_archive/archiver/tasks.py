@@ -22,7 +22,7 @@ celery = Celery('tasks', broker='redis://localhost')
 
 @celery.task
 @transaction.commit_manually
-def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[],DRY=False,EXTENDEDCIFS=False):
+def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",TAGS=[],DRY=False,EXTENDEDCIFS=False,crawlid=None):
     from archiver.archiveFiles import makeTar,uploadToGlacier,addPerms
     from celery.utils.log import get_task_logger
     logger = get_task_logger(__name__)
@@ -37,7 +37,7 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
     GLACIER_REALM=settings.GLACIER_REALM
     USECELERY=settings.USECELERY
         
-    logger.debug("Got job %s-files,%s" % (len(job),EXTENDEDCIFS))
+    logger.info("Got job %s-files,%s,%s" % (len(job),DESCRIPTION,crawlid))
     try:
         c = Archives().archive_create(short_description=DESCRIPTION,tags=TAGS,vault=GLACIER_VAULT)
         if not DRY:
@@ -81,14 +81,12 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                     bulk.append(f)
                     if EXTENDEDCIFS:
 			permissions.append({"perm":jobf['perms'],"fileobj":f})
-                        #addPerms(jobf['perms'],f)
-                    
+                logger.info("Total size for Task:" %s (total_bytesize))    
             if not DRY:
                 ArchiveFiles.objects.bulk_create(bulk)
 		transaction.savepoint()
 		if EXTENDEDCIFS:
 			for p in permissions:
-				logger.debug("TEST %s" % (p["fileobj"].pk))
 				addPerms(p["perm"],p["fileobj"])
                 #upload to glacier
                 archive_id = uploadToGlacier(tempTarFile=tempTarFile,
@@ -101,6 +99,9 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                 c.bytesize=total_bytesize
                 c.filecount=filelength
                 c.save()
+		crawl = Crawl.objects.get(id=crawlid)
+		crawl(bytesuploaded=(crawl.bytesuploaded+total_bytesize))
+		crawl.save()
                 transaction.commit()
             else:
                 transaction.rollback()
@@ -113,4 +114,5 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
         logger.error('Error creating archive final %s' % (exc))
         print ('Error creating archive final %s' % (exc))
         transaction.rollback()
+    logger.info("Finished job %s-files,%s" % (len(job),DESCRIPTION))
     return

@@ -11,6 +11,11 @@ from guardian.shortcuts import assign,remove_perm
 import logging,string,random,ldap
 logger = logging.getLogger(__name__)
 
+class Crawl(models.Model):
+    crawlpath = models.CharField(max_length=1000)
+    totalbytes = models.BigIntegerField(blank=True,null=True,default=0)
+    bytesuploaded =  models.BigIntegerField(blank=True,null=True,default=0)
+
 class ArchiveManager(models.Manager):
     def archive_search(self,searchquery):
         sqs = SearchQuerySet().auto_query(searchquery).models(Archives)

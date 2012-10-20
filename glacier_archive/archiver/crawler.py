@@ -3,9 +3,11 @@ from datetime import timedelta
 from datetime import datetime
 logger=logging.getLogger(__name__)
 from cifsacl import getfacl
-from archiver.models import Archives,ArchiveFiles,UserCache
+from archiver.models import Archives,ArchiveFiles,UserCache,Crawl
 from archiver.tasks import archiveFilesTask as af
-
+from django.db import models
+from django.conf import settings
+from pytz import timezone
 
 
 class Crawler(object):
@@ -25,6 +27,9 @@ class Crawler(object):
     tags=[]
     dry=False
     temp_dir=""
+    totaljobsize=0
+    crawlid=None
+    crawlobj=None
 
     def __init__(self, filepath=None,recurse=False,numfiles=1000,archivemb=500,queue=queue,usecelery=False,extendedcifs=False,description="",debug=False,tags=None,dry=False,temp_dir=""):
         self.filepath=filepath
@@ -39,6 +44,10 @@ class Crawler(object):
 	self.tags=tags
 	self.dry=dry
 	self.temp_dir=temp_dir
+        crawl = Crawl(crawlpath=filepath)
+        crawl.save()
+	self.crawlobj=crawl
+        self.crawlid=crawl.id
        
     def buildPerms(self,perms,rfile):
         gf = getfacl(rfile)
@@ -98,15 +107,15 @@ class Crawler(object):
         if len(self.jobarray)<self.numfiles and mega_byte_size<self.archivemb:
             self.jobarray.append({"rfile":rfile,"perms":perms})
             self.arraysize = self.arraysize+statinfo.st_size
-            #continue
         else:
             jobcopy = self.jobarray
             if self.usecelery:
                 self.alljobs.append(jobcopy)
 		id_gen = self.temp_dir+"/"+id_generator(size=16)
-		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs])
+		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
             else:
                 self.queue.put(jobcopy)
+	    self.totaljobsize=self.arraysize+self.totaljobsize
             self.jobarray=[]
             self.arraysize=0
             self.jobarray.append({"rfile":rfile,"perms":perms})
@@ -150,11 +159,13 @@ class Crawler(object):
             if len(jobcopy)>0:
                 self.alljobs.append(jobcopy)
 		id_gen=self.temp_dir+"/"+id_generator(size=16)
-		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs])
+		af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
         else:    
             if len(jobcopy)>0:
                 self.queue.put(jobcopy)
-            
-        logger.debug("Done crawl "+filepath)
+        self.totaljobsize=self.arraysize+self.totaljobsize
+	self.crawlobj(totalbytes=self.totaljobsize)
+	self.crawlobj.save()
+        logger.info("Done crawl "+filepath+" "+self.crawlid+" "+self.totaljobsize+" bytes")
             
         return    
