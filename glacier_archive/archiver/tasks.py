@@ -100,9 +100,13 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                 c.save()
                 try:
                     crawl = Crawl.objects.get(id=crawlid)
-                    crawl(bytesuploaded=(crawl.bytesuploaded+total_bytesize))
+                    crawl.bytesuploaded=crawl.bytesuploaded+total_bytesize
                     crawl.save()
                     transaction.savepoint()
+		    if crawl.totalybytes and crawl.totalbytes>0:
+		    	logger.info("Finished job %s: %s percent done total crawl. " % (DESCRIPTION,((crawl.bytesuploaded*100)/crawl.totalbytes)))
+		    else:
+		    	logger.info("Still crawling %s -- will get an ETA soon" % DESCRIPTION)
                 except Exception,exc:
                     logger.error("Error with updating crawl stats: %s" % (exc))
                     
@@ -118,5 +122,5 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
         logger.error('Error creating archive final %s' % (exc))
         print ('Error creating archive final %s' % (exc))
         transaction.rollback()
-    logger.info("Finished job %s-files,%s,%s" % (len(job),DESCRIPTION,crawlid))
+    logger.info("Finished job: %s files,Description: %s,CrawlID: %s" % (len(job),DESCRIPTION,crawlid))
     return
