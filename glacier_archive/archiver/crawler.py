@@ -163,9 +163,7 @@ class Crawler(object):
         else:    
             if len(jobcopy)>0:
                 self.queue.put(jobcopy)
-        self.totaljobsize=self.arraysize+self.totaljobsize
-        self.crawlobj.totalbytes=self.totaljobsize
-        self.crawlobj.save()
+	self.totaljobsize=self.totaljobsize+self.arraysize
         logger.info("Done crawl %s %s %s bytes" % (filepath,self.crawlid,self.totaljobsize))
             
         return    

@@ -48,7 +48,8 @@ GLACIER_REALM="us-east-1"
 USECELERY=False
 DRY=False
 EXTENDEDCIFS=False
-
+CRAWLID=None
+CRAWLOBJ=None
 logger=logging.getLogger(__name__)
 queue = Queue()
 
@@ -283,7 +284,7 @@ def archiveFiles (tempTarFile=None,dry=False):
 
 def main(argv):
     #set up all of the variables
-    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY,DRY,EXTENDEDCIFS,EXTENDEDNFS
+    global NUM_PROCS,TEMP_DIR,ACCESS_KEY,SECRET_ACCESS_KEY,GLACIER_VAULT,NUMFILES,ARCHIVEMB,GLACIER_REALM,USECELERY,DRY,EXTENDEDCIFS,EXTENDEDNFS,CRAWLOBJ,CRAWLID
     NUM_PROCS=settings.NUM_PROCS
     TEMP_DIR=settings.TEMP_DIR
     ACCESS_KEY=settings.ACCESS_KEY
@@ -380,9 +381,9 @@ def main(argv):
             c.set_newer(int(NEWERTHAN))
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
-            #for job in c.alljobs:
-                #af.apply_async(args=[(TEMP_DIR+"/"+id_generator(size=16)), job,DEBUG_MODE,DESCRIPTION,TAGS,DRY,EXTENDEDCIFS])
-                #archiveFiles.delay(4, 4)            
+            CRAWLID = c.crawlid
+            CRAWLOBJ = c.crawlobj
+            Crawl.objects.filter(id=crawlid).update(totalbytes=c.totaljobsize)
         else:
             pass
             #one file

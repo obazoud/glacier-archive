@@ -11,7 +11,7 @@ from threading import Thread
 from Queue import *
 from django.db import models
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q,F
 from django.contrib import messages
 from django.db import transaction
 from datetime import datetime
@@ -99,10 +99,10 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                 c.filecount=filelength
                 c.save()
                 try:
-                    crawl = Crawl.objects.get(id=crawlid)
-                    crawl.bytesuploaded=crawl.bytesuploaded+total_bytesize
-                    crawl.save()
+                    crawlfil = Crawl.objects.filter(id=crawlid)
+                    crawlfil.update(bytesuploaded = (F('bytesuploaded') + total_bytesize))
                     transaction.savepoint()
+                    crawl = Crawl.objects.get(id=crawlid)
 		    if crawl.totalbytes and crawl.totalbytes>0:
 		    	logger.info("Finished job %s: %s percent done total crawl. " % (DESCRIPTION,((crawl.bytesuploaded*100)/crawl.totalbytes)))
 		    else:
