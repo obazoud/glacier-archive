@@ -383,7 +383,7 @@ def main(argv):
             c.recurseCrawl(FILENAME)
             CRAWLID = c.crawlid
             CRAWLOBJ = c.crawlobj
-            Crawl.objects.filter(id=crawlid).update(totalbytes=c.totaljobsize)
+            Crawl.objects.filter(id=CRAWLID).update(totalbytes=c.totaljobsize)
         else:
             pass
             #one file
