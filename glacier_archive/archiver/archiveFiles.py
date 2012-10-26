@@ -183,7 +183,7 @@ def addPerms(perms,f):
         counter=counter+1
     return
 
-
+#This has been deprecated until haystack queue stuff is fixed
 @transaction.commit_manually
 def archiveFiles (tempTarFile=None,dry=False):
     global queue
@@ -388,28 +388,30 @@ def main(argv):
             pass
             #one file
     else:
-        if DIR:
-            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS,description=DESCRIPTION,debug=DEBUG_MODE,tags=TAGS,dry=DRY,temp_dir=TEMP_DIR)
-            c.set_newer(int(NEWERTHAN))
-            c.set_older(int(OLDERTHAN))
-            c.recurseCrawl(FILENAME)
-            for i in range(NUM_PROCS):
-                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16),DRY])
-                t.setDaemon(True)
-                t.start()
-        else:
-            fileList=[]
-            fileList.append(FILENAME)
-            queue.put(fileList)    
-            for i in range(NUM_PROCS):
-                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16),DRY])
-                t.setDaemon(True)
-                t.start()
-        
-        queue.join()
-        if queue.empty():
-            print "Done processing queue."
-            sys.exit(1)        
+        print "Use Celery for now..."
+        sys.exit(1)
+#        if DIR:
+#            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS,description=DESCRIPTION,debug=DEBUG_MODE,tags=TAGS,dry=DRY,temp_dir=TEMP_DIR)
+#            c.set_newer(int(NEWERTHAN))
+#            c.set_older(int(OLDERTHAN))
+#            c.recurseCrawl(FILENAME)
+#            for i in range(NUM_PROCS):
+#                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16),DRY])
+#                t.setDaemon(True)
+#                t.start()
+#        else:
+#            fileList=[]
+#            fileList.append(FILENAME)
+#            queue.put(fileList)    
+#            for i in range(NUM_PROCS):
+#                t = Thread(target=archiveFiles,args=[TEMP_DIR+"/"+id_generator(size=16),DRY])
+#                t.setDaemon(True)
+#                t.start()
+#        
+#        queue.join()
+#        if queue.empty():
+#            print "Done processing queue."
+#            sys.exit(1)        
 
 def usage():
     print 'archiveFilesCommandline.py - find and archive to glacier'
