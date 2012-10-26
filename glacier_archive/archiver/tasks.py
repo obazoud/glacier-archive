@@ -103,10 +103,10 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
                     crawlfil.update(bytesuploaded = (F('bytesuploaded') + total_bytesize))
                     transaction.savepoint()
                     crawl = Crawl.objects.get(id=crawlid)
-		    if crawl.totalbytes and crawl.totalbytes>0:
-		    	logger.info("Finished job %s: %s percent done total crawl. " % (DESCRIPTION,((crawl.bytesuploaded*100)/crawl.totalbytes)))
-		    else:
-		    	logger.info("Still crawling %s -- will get an ETA soon" % DESCRIPTION)
+                    if crawl.totalbytes and crawl.totalbytes>0:
+                        logger.info("Finished job %s: %s percent done total crawl. " % (DESCRIPTION,((crawl.bytesuploaded*100)/crawl.totalbytes)))
+                    else:
+                        logger.info("Still crawling %s -- will get an ETA soon" % DESCRIPTION)
                 except Exception,exc:
                     logger.error("Error with updating crawl stats: %s" % (exc))
                     
