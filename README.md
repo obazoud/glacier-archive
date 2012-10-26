@@ -52,6 +52,7 @@ Setup
 Make sure your DB is on. After setting your settings.py file to the stuff you want (glacier_archive/glacier_archive/settings.py), execute:  
 ```
 python manage.py syncdb --noinput
+mysql -username -ppassword glacier_archive < glacier_archive/archiver/sql/archivefiles.sql
 ```
 Which sets up all of the DB tables. This assumes that you'll just use the provided command-line tools.
 
@@ -59,7 +60,10 @@ If you think that you'll use the (future) Web or API Interfaces, run:
 ```
 python manage.py syncdb
 ```
-A follow the on-screen instructions for creating a root user.  
+A follow the on-screen instructions for creating a root user. Then:
+```
+mysql -username -ppassword glacier_archive < glacier_archive/archiver/sql/archivefiles.sql
+```
 
 If you're familiar with Django, you can set up the (not-very-exciting) web interface. 
 
