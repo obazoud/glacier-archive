@@ -7,7 +7,7 @@ from archiver.tasks import archiveFilesTask as af
 from django.db import models
 from django.conf import settings
 from pytz import timezone
-if settings.CIFSACL:
+if settings.CIFSPERMS:
 	from cifsacl import getfacl
 
 
