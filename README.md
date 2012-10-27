@@ -9,6 +9,8 @@ This is meant to be a full, scalable archival solution. If you just have a few b
 
 Requirements
 ===========================
+Linux
+
 Python 2.7+
 
 Django 1.4+ (and some knowledge about basic Django setup. Yes, I know this is command-line, but it was the fastest path to a good DB/search)
@@ -20,6 +22,8 @@ Glacier libraries for Python (https://github.com/paulengstler/glacier). You migh
 Boto w/Glacier libraries (2.6.0).  
 
 Celery and Redis if you're doing multi-threading. (celery-with-redis)  
+
+Django Guardian, Python LDAP
 
 Django Settings File
 ===========================
@@ -41,6 +45,7 @@ AD_DN = "name@xxx.xxx" - If doing extended attributes, used for lookups.
 AD_PW = "password" - If doing extended attributes, used for lookups.  
 AD_BASE = "dc=xxx,dc=xxx" - If doing extended attributes, used for lookups.  
 
+CIFSPERMS=False  
 
 celeryconfig.py settings file  
 =================================
@@ -49,6 +54,19 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by de
 
 Setup
 =========================
+
+If you set CIFSPERMS to True, you need to set up the CIFS stuff:  
+cd to glacier_archive/cifsacl  
+```
+autoreconf -i
+./configure
+make
+sudo make install
+
+python setup.py build
+sudo python setup.py install
+```
+
 Make sure your DB is on. After setting your settings.py file to the stuff you want (glacier_archive/glacier_archive/settings.py), execute:  
 ```
 python manage.py syncdb --noinput
