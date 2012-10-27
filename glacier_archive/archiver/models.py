@@ -6,7 +6,7 @@ from pytz import timezone
 from haystack.query import SearchQuerySet
 from taggit.managers import TaggableManager
 from guardian.shortcuts import assign,remove_perm
-if settings.CIFSPERM:
+if settings.CIFSPERMS:
 	from cifsacl import getfacl
 
 
