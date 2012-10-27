@@ -45,7 +45,7 @@ AD_DN = "name@xxx.xxx" - If doing extended attributes, used for lookups.
 AD_PW = "password" - If doing extended attributes, used for lookups.  
 AD_BASE = "dc=xxx,dc=xxx" - If doing extended attributes, used for lookups.  
 
-CIFSPERMS=False  
+CIFSPERMS=True - enable the ability to turn on extended CIFS permissions if backing up a CIFS dir via Glacier.    
 
 celeryconfig.py settings file  
 =================================
