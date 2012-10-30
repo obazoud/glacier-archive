@@ -2,12 +2,13 @@ import os, math,logging,random,string
 from datetime import timedelta
 from datetime import datetime
 logger=logging.getLogger(__name__)
-from cifsacl import getfacl
 from archiver.models import Archives,ArchiveFiles,UserCache,Crawl
 from archiver.tasks import archiveFilesTask as af
 from django.db import models
 from django.conf import settings
 from pytz import timezone
+if settings.CIFSPERMS:
+	from cifsacl import getfacl
 
 
 class Crawler(object):
