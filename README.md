@@ -55,6 +55,8 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by de
 Setup
 =========================
 
+CIFS setup (optional)
+=========================
 If you set CIFSPERMS to True, you need to set up the CIFS stuff:  
 cd to glacier_archive/cifsacl  
 ```
@@ -67,6 +69,8 @@ python setup.py build
 sudo python setup.py install
 ```
 
+DB Setup
+=========================
 Make sure your DB is on. After setting your settings.py file to the stuff you want (glacier_archive/glacier_archive/settings.py), execute:  
 ```
 python manage.py syncdb --noinput
