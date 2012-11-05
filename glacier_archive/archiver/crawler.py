@@ -1,4 +1,4 @@
-import os, math,logging,random,string
+import os, math,logging,random,string,gc
 from datetime import timedelta
 from datetime import datetime
 logger=logging.getLogger(__name__)
@@ -100,6 +100,10 @@ class Crawler(object):
         from archiver.archiveFiles import id_generator 
         kilo_byte_size = self.arraysize/1024
         mega_byte_size = kilo_byte_size/1024
+	try:
+		del perms[:]
+	except:
+		pass
         perms=[]
         if self.extendedcifs:
             perms = self.buildPerms(perms,rfile)
@@ -108,14 +112,22 @@ class Crawler(object):
             self.jobarray.append({"rfile":rfile,"perms":perms})
             self.arraysize = self.arraysize+statinfo.st_size
         else:
+            try:
+            	del jobcopy[:]
+            except:
+            	pass
             jobcopy = self.jobarray
             if self.usecelery:
-                self.alljobs.append(jobcopy)
+                #self.alljobs.append(jobcopy)
                 id_gen = self.temp_dir+"/"+id_generator(size=16)
                 af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
+		del jobcopy[:]
+		gc.collect()
             else:
                 self.queue.put(jobcopy)
             self.totaljobsize=self.arraysize+self.totaljobsize
+            del self.jobarray[:]
+            gc.collect()
             self.jobarray=[]
             self.arraysize=0
             self.jobarray.append({"rfile":rfile,"perms":perms})
@@ -152,12 +164,16 @@ class Crawler(object):
                         continue
                 else:
                     self.addFile(rfile,statinfo)
-
+	try:
+		del jobcopy[:]
+		gc.collect()
+	except:
+		pass
         jobcopy=[]
         jobcopy = self.jobarray
         if self.usecelery:
             if len(jobcopy)>0:
-                self.alljobs.append(jobcopy)
+                #self.alljobs.append(jobcopy)
                 id_gen=self.temp_dir+"/"+id_generator(size=16)
                 af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
         else:    

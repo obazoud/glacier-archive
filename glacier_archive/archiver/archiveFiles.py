@@ -91,7 +91,7 @@ def uploadToGlacier(tempTarFile=None,
             logger.debug("Glacier Vault: %s" % glacier_vault_in)
         
         #my_archive = GlacierArchive(tempTarFile)
-        uploader = ConcurrentUploader(my_glacier, GLACIER_VAULT, 32*1024*1024)
+        uploader = ConcurrentUploader(my_glacier, GLACIER_VAULT, 64*1024*1024)
 
         if DEBUG_MODE:
             #logger.debug("Archive created in mem: %s " % my_archive)
@@ -100,7 +100,7 @@ def uploadToGlacier(tempTarFile=None,
         #glacier_vault_in.upload(my_archive)
         archive_id = uploader.upload(tempTarFile, tempTarFile)
         if DEBUG_MODE:
-            logger.debug("upload created: %s" % glacier_vault_in)
+            logger.info("upload created: %s" % glacier_vault_in)
     except Exception,exc:
         if exc.args>0:
             x, y = exc.args
