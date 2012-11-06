@@ -2,12 +2,13 @@ import os, math,logging,random,string,gc
 from datetime import timedelta
 from datetime import datetime
 logger=logging.getLogger(__name__)
-from cifsacl import getfacl
 from archiver.models import Archives,ArchiveFiles,UserCache,Crawl
 from archiver.tasks import archiveFilesTask as af
 from django.db import models
 from django.conf import settings
 from pytz import timezone
+if settings.CIFSPERMS:
+	from cifsacl import getfacl
 
 
 class Crawler(object):
@@ -142,6 +143,8 @@ class Crawler(object):
                 kilo_byte_size = self.arraysize/1024
                 mega_byte_size = kilo_byte_size/1024
                 rfile = os.path.join(path,fi)
+                if os.path.islink(rfile):
+                    continue
                 statinfo = os.stat(rfile)
                 if self.oldertime>0 or self.newertime>0:
                     dateatime = datetime.fromtimestamp(statinfo.st_mtime)
@@ -179,7 +182,7 @@ class Crawler(object):
         else:    
             if len(jobcopy)>0:
                 self.queue.put(jobcopy)
-	self.totaljobsize=self.totaljobsize+self.arraysize
+        self.totaljobsize=self.totaljobsize+self.arraysize
         logger.info("Done crawl %s %s %s bytes" % (filepath,self.crawlid,self.totaljobsize))
             
         return    

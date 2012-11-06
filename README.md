@@ -9,6 +9,8 @@ This is meant to be a full, scalable archival solution. If you just have a few b
 
 Requirements
 ===========================
+Linux
+
 Python 2.7+
 
 Django 1.4+ (and some knowledge about basic Django setup. Yes, I know this is command-line, but it was the fastest path to a good DB/search)
@@ -20,6 +22,8 @@ Glacier libraries for Python (https://github.com/paulengstler/glacier). You migh
 Boto w/Glacier libraries (2.6.0).  
 
 Celery and Redis if you're doing multi-threading. (celery-with-redis)  
+
+Django Guardian, Python LDAP
 
 Django Settings File
 ===========================
@@ -41,6 +45,7 @@ AD_DN = "name@xxx.xxx" - If doing extended attributes, used for lookups.
 AD_PW = "password" - If doing extended attributes, used for lookups.  
 AD_BASE = "dc=xxx,dc=xxx" - If doing extended attributes, used for lookups.  
 
+CIFSPERMS=True - enable the ability to turn on extended CIFS permissions if backing up a CIFS dir via Glacier.    
 
 celeryconfig.py settings file  
 =================================
@@ -49,9 +54,27 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' - Broker Backend. Redis by de
 
 Setup
 =========================
+
+CIFS setup (optional)
+=========================
+If you set CIFSPERMS to True, you need to set up the CIFS stuff:  
+cd to glacier_archive/cifsacl  
+```
+autoreconf -i
+./configure
+make
+sudo make install
+
+python setup.py build
+sudo python setup.py install
+```
+
+DB Setup
+=========================
 Make sure your DB is on. After setting your settings.py file to the stuff you want (glacier_archive/glacier_archive/settings.py), execute:  
 ```
 python manage.py syncdb --noinput
+mysql -username -ppassword glacier_archive < glacier_archive/archiver/sql/archivefiles.sql
 ```
 Which sets up all of the DB tables. This assumes that you'll just use the provided command-line tools.
 
@@ -59,7 +82,10 @@ If you think that you'll use the (future) Web or API Interfaces, run:
 ```
 python manage.py syncdb
 ```
-A follow the on-screen instructions for creating a root user.  
+A follow the on-screen instructions for creating a root user. Then:
+```
+mysql -username -ppassword glacier_archive < glacier_archive/archiver/sql/archivefiles.sql
+```
 
 If you're familiar with Django, you can set up the (not-very-exciting) web interface. 
 
