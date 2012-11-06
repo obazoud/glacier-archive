@@ -199,6 +199,7 @@ AD_DN = "db165@xxxx"
 AD_PW = "xxxx"
 AD_BASE = "xxxx"
 CIFSACL=True
+CIFSPERMS=True
 ANONYMOUS_USER_ID = -1
 import djcelery
 djcelery.setup_loader()
