@@ -306,6 +306,10 @@ print_sid_raw:
         PyObject * py_title;
         py_title = Py_BuildValue("s", st1);
         PyList_Append(py_acl_list, py_title);
+	free(st1);
+	free(st2);
+	free(st3);
+	free(st4);
 }
 
 static void
@@ -483,6 +487,7 @@ cifsacl_getfacl(PyObject *self, PyObject *args)
   py_acl_list = PyList_New(0);
 
   parse_sec_desc((struct cifs_ntsd *)attrval, attrlen, raw, py_acl_list);
+  free(attrval);
 
 
 
