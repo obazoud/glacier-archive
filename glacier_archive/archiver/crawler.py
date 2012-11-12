@@ -7,6 +7,7 @@ from archiver.tasks import archiveFilesTask as af
 from django.db import models
 from django.conf import settings
 from pytz import timezone
+from time import sleep
 if settings.CIFSPERMS:
 	from cifsacl import getfacl
 
@@ -30,6 +31,7 @@ class Crawler(object):
 	totaljobsize=0
 	crawlid=None
 	crawlobj=None
+	filelist = []
 
 	def __init__(self, filepath=None,recurse=False,numfiles=1000,archivemb=500,queue=queue,usecelery=False,extendedcifs=False,description="",debug=False,tags=None,dry=False,temp_dir=""):
 		self.filepath=filepath
@@ -98,14 +100,10 @@ class Crawler(object):
 
 	def addFile(self,rfile,statinfo):
 		perms=[]
-		jobcopy=[]
+		gc.collect()
 		from archiver.archiveFiles import id_generator 
 		kilo_byte_size = self.arraysize/1024
 		mega_byte_size = kilo_byte_size/1024
-		try:
-			del perms[:]
-		except:
-			pass
 		if self.extendedcifs:
 			perms = self.buildPerms(perms,rfile)
 			
@@ -113,10 +111,6 @@ class Crawler(object):
 			self.jobarray.append({"rfile":rfile,"perms":perms})
 			self.arraysize = self.arraysize+statinfo.st_size
 		else:
-			try:
-				del jobcopy[:]
-			except:
-				pass
 			jobcopy = self.jobarray
 			if self.usecelery:
 				#self.alljobs.append(jobcopy)
@@ -133,20 +127,64 @@ class Crawler(object):
 			self.arraysize=0
 			self.jobarray.append({"rfile":rfile,"perms":perms})
 			self.arraysize = self.arraysize+statinfo.st_size
+		self.filelist.remove(rfile)
+
+        def recurseDir(self,filepath=filepath):
+                global logger
+                from archiver.archiveFiles import id_generator
+                for fileobject in os.listdir(filepath):
+                        rfile = os.path.join(filepath, fileobject)
+                        if os.path.isfile(rfile) and not os.path.islink(rfile):
+                        #for fi in files:
+                                kilo_byte_size = self.arraysize/1024
+                                mega_byte_size = kilo_byte_size/1024
+                                #rfile = os.path.join(path,fi)
+                                if os.path.islink(rfile):
+                                        continue
+                                statinfo = os.stat(rfile)
+                                if self.oldertime>0 or self.newertime>0:
+                                        dateatime = datetime.fromtimestamp(statinfo.st_mtime)
+                                        #datemtime = datetime.fromtimestamp(statinfo.st_mtime)
+                                        if self.oldertime>0 and self.newertime>0:
+                                                #between
+                                                if (dateatime < (datetime.now() - timedelta(days=self.oldertime))) and (dateatime > (datetime.now() - timedelta(days=self.newertime))):
+                                                        self.filelist.append(rfile)
+                                                        self.addFile(rfile,statinfo)
+                                                        continue
+                                        elif self.oldertime>0 and self.newertime==0:
+                                                #print "%s %s" % (dateatime, (datetime.now() - timedelta(days=self.oldertime)))
+                                                if (dateatime < (datetime.now() - timedelta(days=self.oldertime))):
+                                                        self.filelist.append(rfile)
+                                                        self.addFile(rfile,statinfo)
+							continue
+                                        elif self.oldertime==0 and self.newertime>0:
+                                                if (dateatime > (datetime.now() - timedelta(days=self.newertime))):
+                                                        self.filelist.append(rfile)
+                                                        self.addFile(rfile,statinfo)
+                                                        continue
+                                        else:
+                                                continue
+                                else:
+                                        self.filelist.append(rfile)
+                                        self.addFile(rfile,statinfo)
+                        elif os.path.isdir(rfile) and not os.path.islink(rfile):
+                                self.recurseDir(rfile)
+                        else:
+                                continue
 
 	
 	def recurseCrawl(self,filepath=filepath):
 		global logger
 		from archiver.archiveFiles import id_generator
 		#subprocess.Popen(["/usr/bin/find", "/root","-type","f","-printf"," %h%f "],stdout=subprocess.PIPE).communicate()[0]
-		#for (path, dirs, files) in os.walk(filepath):
-		for fileobject in os.listdir(filepath):
-			rfile = os.path.join(filepath, fileobject)
-			if os.path.isfile(rfile) and not os.path.islink(rfile):
-			#for fi in files:
+		for (path, dirs, files) in os.walk(filepath):
+		#for fileobject in os.listdir(filepath):
+			#rfile = os.path.join(filepath, fileobject)
+			#if os.path.isfile(rfile) and not os.path.islink(rfile):
+			for fi in files:
 				kilo_byte_size = self.arraysize/1024
 				mega_byte_size = kilo_byte_size/1024
-				#rfile = os.path.join(path,fi)
+				rfile = os.path.join(path,fi)
 				if os.path.islink(rfile):
 					continue
 				statinfo = os.stat(rfile)
@@ -156,27 +194,35 @@ class Crawler(object):
 					if self.oldertime>0 and self.newertime>0:
 						#between
 						if (dateatime < (datetime.now() - timedelta(days=self.oldertime))) and (dateatime > (datetime.now() - timedelta(days=self.newertime))):
+							self.filelist.append(rfile)
 							self.addFile(rfile,statinfo)
 							continue
 					elif self.oldertime>0 and self.newertime==0:
 						#print "%s %s" % (dateatime, (datetime.now() - timedelta(days=self.oldertime)))
 						if (dateatime < (datetime.now() - timedelta(days=self.oldertime))):
+							self.filelist.append(rfile)
 							self.addFile(rfile,statinfo)
 							continue
 					elif self.oldertime==0 and self.newertime>0:
 						if (dateatime > (datetime.now() - timedelta(days=self.newertime))):
+							self.filelist.append(rfile)
 							self.addFile(rfile,statinfo)
 							continue
 					else:
 						continue
 				else:
+					self.filelist.append(rfile)
 					self.addFile(rfile,statinfo)
-			elif os.path.isdir(rfile) and not os.path.islink(rfile):
-				self.recurseCrawl(rfile)
-			else:
-				continue
-						
-		jobcopy=[]
+			#elif os.path.isdir(rfile) and not os.path.islink(rfile):
+			#	self.recurseDir(rfile)
+			#else:
+			#	continue
+
+		#while(len(self.filelist)>0):
+		#	sleep(1)
+		#	pass
+		#else:
+		#	logger.info("Done Crawl - Submit last task")			
 		jobcopy = self.jobarray
 		if self.usecelery:
 			if len(jobcopy)>0:
