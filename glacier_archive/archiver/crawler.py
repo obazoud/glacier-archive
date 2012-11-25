@@ -50,7 +50,7 @@ class Crawler(object):
 		crawl.save()
 		self.crawlobj=crawl
 		self.crawlid=crawl.id
-	   
+
 	def buildPerms(self,perms,rfile):
 		gf = getfacl(rfile)
 		counter = 0
@@ -128,59 +128,11 @@ class Crawler(object):
 			self.jobarray.append({"rfile":rfile,"perms":perms})
 			self.arraysize = self.arraysize+statinfo.st_size
 		self.filelist.remove(rfile)
-
-        def recurseDir(self,filepath=filepath):
-                global logger
-                from archiver.archiveFiles import id_generator
-                for fileobject in os.listdir(filepath):
-                        rfile = os.path.join(filepath, fileobject)
-                        if os.path.isfile(rfile) and not os.path.islink(rfile):
-                        #for fi in files:
-                                kilo_byte_size = self.arraysize/1024
-                                mega_byte_size = kilo_byte_size/1024
-                                #rfile = os.path.join(path,fi)
-                                if os.path.islink(rfile):
-                                        continue
-                                statinfo = os.stat(rfile)
-                                if self.oldertime>0 or self.newertime>0:
-                                        dateatime = datetime.fromtimestamp(statinfo.st_mtime)
-                                        #datemtime = datetime.fromtimestamp(statinfo.st_mtime)
-                                        if self.oldertime>0 and self.newertime>0:
-                                                #between
-                                                if (dateatime < (datetime.now() - timedelta(days=self.oldertime))) and (dateatime > (datetime.now() - timedelta(days=self.newertime))):
-                                                        self.filelist.append(rfile)
-                                                        self.addFile(rfile,statinfo)
-                                                        continue
-                                        elif self.oldertime>0 and self.newertime==0:
-                                                #print "%s %s" % (dateatime, (datetime.now() - timedelta(days=self.oldertime)))
-                                                if (dateatime < (datetime.now() - timedelta(days=self.oldertime))):
-                                                        self.filelist.append(rfile)
-                                                        self.addFile(rfile,statinfo)
-							continue
-                                        elif self.oldertime==0 and self.newertime>0:
-                                                if (dateatime > (datetime.now() - timedelta(days=self.newertime))):
-                                                        self.filelist.append(rfile)
-                                                        self.addFile(rfile,statinfo)
-                                                        continue
-                                        else:
-                                                continue
-                                else:
-                                        self.filelist.append(rfile)
-                                        self.addFile(rfile,statinfo)
-                        elif os.path.isdir(rfile) and not os.path.islink(rfile):
-                                self.recurseDir(rfile)
-                        else:
-                                continue
-
 	
 	def recurseCrawl(self,filepath=filepath):
 		global logger
 		from archiver.archiveFiles import id_generator
-		#subprocess.Popen(["/usr/bin/find", "/root","-type","f","-printf"," %h%f "],stdout=subprocess.PIPE).communicate()[0]
 		for (path, dirs, files) in os.walk(filepath):
-		#for fileobject in os.listdir(filepath):
-			#rfile = os.path.join(filepath, fileobject)
-			#if os.path.isfile(rfile) and not os.path.islink(rfile):
 			for fi in files:
 				kilo_byte_size = self.arraysize/1024
 				mega_byte_size = kilo_byte_size/1024
@@ -213,16 +165,6 @@ class Crawler(object):
 				else:
 					self.filelist.append(rfile)
 					self.addFile(rfile,statinfo)
-			#elif os.path.isdir(rfile) and not os.path.islink(rfile):
-			#	self.recurseDir(rfile)
-			#else:
-			#	continue
-
-		#while(len(self.filelist)>0):
-		#	sleep(1)
-		#	pass
-		#else:
-		#	logger.info("Done Crawl - Submit last task")			
 		jobcopy = self.jobarray
 		if self.usecelery:
 			if len(jobcopy)>0:
@@ -233,6 +175,5 @@ class Crawler(object):
 			if len(jobcopy)>0:
 				self.queue.put(jobcopy)
 		self.totaljobsize=self.totaljobsize+self.arraysize
-		logger.info("Done crawl %s %s %s bytes" % (filepath,self.crawlid,self.totaljobsize))
-			
+		logger.info("Done crawl %s %s %s bytes" % (filepath,self.crawlid,self.totaljobsize))			
 		return	
