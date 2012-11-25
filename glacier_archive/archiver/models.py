@@ -5,8 +5,10 @@ from django.conf import settings
 from pytz import timezone
 from haystack.query import SearchQuerySet
 from taggit.managers import TaggableManager
-from cifsacl import getfacl
 from guardian.shortcuts import assign,remove_perm
+if settings.CIFSPERMS:
+	from cifsacl import getfacl
+
 
 import logging,string,random,ldap
 logger = logging.getLogger(__name__)

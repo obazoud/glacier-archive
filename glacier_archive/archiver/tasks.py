@@ -18,7 +18,8 @@ from datetime import datetime
 from pytz import timezone
 from archiver.models import Archives,ArchiveFiles,Crawl
 
-celery = Celery('tasks', broker='redis://localhost')
+#celery = Celery('tasks', broker='redis://localhost')
+celery = Celery('tasks', broker='amqp://guest@localhost//')
 
 @celery.task
 @transaction.commit_manually
@@ -51,7 +52,7 @@ def archiveFilesTask (tempTarFile=None,job=None,DEBUG_MODE=False,DESCRIPTION="",
             if not DRY:
                 transaction.savepoint_commit(sid)
             if DEBUG_MODE:
-                logger.debug("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
+                logger.info("Number of files in job: %s -- File %s" % (len(job),tempTarFile))
             #add each to DB
             bulk=[]
             permissions=[]
