@@ -1,4 +1,4 @@
-import os, sys,json 
+import os, sys,json,gc
 base = os.path.dirname(os.path.dirname(__file__)) 
 base_parent = os.path.dirname(base) 
 sys.path.append(base) 
@@ -131,7 +131,7 @@ def makeTar(fileList=None,tempfilename=None,dry=False):
     global NEWERTHAN,OLDERTHAN
     if dry:
         return
-    tar = tarfile.open(tempfilename, "w")
+    tar = tarfile.open(name=tempfilename, mode="w",bufsize=102400)
     for name in fileList:
         n = name['rfile']
         statinfo = os.stat(n)
@@ -144,6 +144,8 @@ def makeTar(fileList=None,tempfilename=None,dry=False):
             pass
             #logger.error("Cannot change utime: %s" % n)
     tar.close()
+    tar=None
+    gc.collect()
     logger.debug("Created archive in tar: %s" % tempfilename)
     return     
 
@@ -374,10 +376,10 @@ def main(argv):
         print "DEBUG MODE"
         
     #start crawl - single crawl, launches multiple tasks
-    global queue
+    #global queue
     if USECELERY:
         if DIR:
-            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=queue,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS,description=DESCRIPTION,debug=DEBUG_MODE,tags=TAGS,dry=DRY,temp_dir=TEMP_DIR)
+            c = Crawler(filepath = FILENAME,recurse=RECURSE,numfiles=NUMFILES,archivemb=ARCHIVEMB,queue=None,usecelery=USECELERY,extendedcifs=EXTENDEDCIFS,description=DESCRIPTION,debug=DEBUG_MODE,tags=TAGS,dry=DRY,temp_dir=TEMP_DIR)
             c.set_newer(int(NEWERTHAN))
             c.set_older(int(OLDERTHAN))
             c.recurseCrawl(FILENAME)
