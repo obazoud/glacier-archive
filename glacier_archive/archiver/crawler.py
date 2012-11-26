@@ -52,10 +52,13 @@ class Crawler(object):
 		self.crawlid=crawl.id
 
 	def buildPerms(self,perms,rfile):
+		gc.collect()
 		gf = getfacl(rfile)
 		counter = 0
+		uc=None
 		for perm in gf:
 			permhash={}
+			uc=None
 			if counter==0:
 				uc = UserCache().lookupSID(str(perm))
 				try:
@@ -118,8 +121,8 @@ class Crawler(object):
 				af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
 				del jobcopy[:]
 				gc.collect()
-			else:
-				self.queue.put(jobcopy)
+			#else:
+			#	self.queue.put(jobcopy)
 			self.totaljobsize=self.arraysize+self.totaljobsize
 			del self.jobarray[:]
 			gc.collect()
@@ -127,7 +130,7 @@ class Crawler(object):
 			self.arraysize=0
 			self.jobarray.append({"rfile":rfile,"perms":perms})
 			self.arraysize = self.arraysize+statinfo.st_size
-		self.filelist.remove(rfile)
+		#self.filelist.remove(rfile)
 	
 	def recurseCrawl(self,filepath=filepath):
 		global logger
@@ -146,34 +149,36 @@ class Crawler(object):
 					if self.oldertime>0 and self.newertime>0:
 						#between
 						if (dateatime < (datetime.now() - timedelta(days=self.oldertime))) and (dateatime > (datetime.now() - timedelta(days=self.newertime))):
-							self.filelist.append(rfile)
+							#self.filelist.append(rfile)
 							self.addFile(rfile,statinfo)
 							continue
 					elif self.oldertime>0 and self.newertime==0:
 						#print "%s %s" % (dateatime, (datetime.now() - timedelta(days=self.oldertime)))
 						if (dateatime < (datetime.now() - timedelta(days=self.oldertime))):
-							self.filelist.append(rfile)
+							#self.filelist.append(rfile)
 							self.addFile(rfile,statinfo)
 							continue
 					elif self.oldertime==0 and self.newertime>0:
 						if (dateatime > (datetime.now() - timedelta(days=self.newertime))):
-							self.filelist.append(rfile)
+							#self.filelist.append(rfile)
 							self.addFile(rfile,statinfo)
 							continue
 					else:
 						continue
 				else:
-					self.filelist.append(rfile)
+					#self.filelist.append(rfile)
 					self.addFile(rfile,statinfo)
+				gc.collect()
 		jobcopy = self.jobarray
 		if self.usecelery:
 			if len(jobcopy)>0:
 				#self.alljobs.append(jobcopy)
 				id_gen=self.temp_dir+"/"+id_generator(size=16)
 				af.apply_async(args=[id_gen, jobcopy,self.debug,self.description,self.tags,self.dry,self.extendedcifs,self.crawlid])
-		else:	
-			if len(jobcopy)>0:
-				self.queue.put(jobcopy)
+		else:
+			pass	
+			#if len(jobcopy)>0:
+			#	self.queue.put(jobcopy)
 		self.totaljobsize=self.totaljobsize+self.arraysize
 		logger.info("Done crawl %s %s %s bytes" % (filepath,self.crawlid,self.totaljobsize))			
 		return	
